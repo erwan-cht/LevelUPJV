@@ -1,49 +1,43 @@
-import Header from './components/Header';
-import HeroCard from './components/HeroCard';
-import MyChallenges from './components/MyChallenges';
-import Activity from './components/Activity';
-import Badges from './components/Badges';
-import Ranking from './components/Ranking';
-import DailyObjectives from './components/DailyObjectives';
-import DuelBanner from './components/DuelBanner';
-import {
-  activity,
-  badges,
-  challenges,
-  currentUser,
-  dailyObjectives,
-  groupRanking,
-  nextBadge,
-  onlinePlayers,
-  promoRanking,
-  streak,
-  streakDays,
-} from './data/mock';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { StudentLayout, TeacherLayout } from './components/layout/Layouts';
+import Classement from './pages/Classement';
+import Connexion from './pages/Connexion';
+import Dashboard from './pages/Dashboard';
+import DefiDetail from './pages/DefiDetail';
+import Defis from './pages/Defis';
+import DuelLive from './pages/DuelLive';
+import Duels from './pages/Duels';
+import Profil from './pages/Profil';
+import Succes from './pages/Succes';
+import Aide from './pages/teacher/Aide';
+import Competences from './pages/teacher/Competences';
+import CreerDefi from './pages/teacher/CreerDefi';
+import MesPromos from './pages/teacher/MesPromos';
 
 export default function App() {
-  const resume = challenges.find((c) => c.status === 'en-cours' && c.testsPassed > 0);
-
   return (
-    <>
-      <Header points={currentUser.points} />
+    <Routes>
+      <Route path="/connexion" element={<Connexion />} />
 
-      <main className="mx-auto max-w-6xl space-y-5 px-4 py-6">
-        <HeroCard user={currentUser} resumeTitle={resume?.title ?? 'Mes défis'} />
+      <Route element={<StudentLayout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="defis" element={<Defis />} />
+        <Route path="defis/:id" element={<DefiDetail />} />
+        <Route path="classement" element={<Classement />} />
+        <Route path="duels" element={<Duels />} />
+        <Route path="duels/en-direct" element={<DuelLive />} />
+        <Route path="profil" element={<Profil />} />
+        <Route path="succes" element={<Succes />} />
+      </Route>
 
-        <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-          <div className="min-w-0 space-y-5">
-            <MyChallenges challenges={challenges} />
-            <Activity days={activity} />
-            <Badges badges={badges} next={nextBadge} />
-          </div>
-          <aside className="min-w-0 space-y-5">
-            <Ranking promo={promoRanking} groupe={groupRanking} />
-            <DailyObjectives objectives={dailyObjectives} streak={streak} streakDays={streakDays} />
-          </aside>
-        </div>
+      <Route path="enseignant" element={<TeacherLayout />}>
+        <Route index element={<MesPromos />} />
+        <Route path="challenges" element={<CreerDefi />} />
+        <Route path="competences" element={<Competences />} />
+        <Route path="aide" element={<Aide />} />
+      </Route>
 
-        <DuelBanner players={onlinePlayers} />
-      </main>
-    </>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

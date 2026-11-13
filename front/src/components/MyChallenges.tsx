@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Flag } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { catalog } from '../data/catalog';
 import type { Challenge, ChallengeStatus } from '../types';
 import { Card, CardTitle, ProgressBar, Tabs } from './ui';
 
@@ -27,9 +29,9 @@ export default function MyChallenges({ challenges }: { challenges: Challenge[] }
         {visible.length === 0 && <li className="text-sm text-muted">Aucun défi ici pour le moment.</li>}
       </ul>
 
-      <a href="#" className="mt-4 inline-block text-xs font-semibold text-brand hover:underline">
+      <Link to="/defis" className="mt-4 inline-block text-xs font-semibold text-brand hover:underline">
         Voir tous les défis →
-      </a>
+      </Link>
     </Card>
   );
 }
@@ -65,9 +67,12 @@ function ChallengeRow({ challenge: c }: { challenge: Challenge }) {
 
       <span className="w-16 shrink-0 text-right text-sm font-bold text-brand">+{c.points} pts</span>
 
-      <button className="w-24 shrink-0 rounded bg-navy py-2 text-xs font-semibold text-white transition hover:bg-navy-light">
+      <Link
+        to={`/defis/${catalog.find((x) => x.title === c.title)?.id ?? 2}`}
+        className="w-24 shrink-0 rounded bg-navy py-2 text-center text-xs font-semibold text-white transition hover:bg-navy-light"
+      >
         {action}
-      </button>
+      </Link>
     </li>
   );
 }

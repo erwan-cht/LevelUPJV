@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Avatar } from './ui';
 
 export default function DuelBanner({ players }: { players: { initials: string; color: string }[] }) {
@@ -20,9 +21,9 @@ export default function DuelBanner({ players }: { players: { initials: string; c
           <span className="h-2 w-2 rounded-full bg-green-600" />
           {players.length} en ligne
         </span>
-        <button className="rounded bg-navy px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-navy-light">
+        <Link to="/duels" className="rounded bg-navy px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-navy-light">
           Lancer un duel
-        </button>
+        </Link>
       </div>
     </section>
   );

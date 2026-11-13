@@ -81,6 +81,27 @@ Autres fichiers :
 - `src/data/mock.ts` : **données factices**.
 - `src/index.css` : couleurs de la charte (`navy`, `brand`…) et police Poppins.
 
+### Toutes les pages du Figma (données factices) : `front/src/pages/`
+
+Routage avec **React Router**, connexion factice (rôle mémorisé dans le navigateur), mise en page commune (en-tête, pied de page, menu burger mobile).
+
+| Route | Page | Fichier |
+|---|---|---|
+| `/connexion` | Connexion (onglets Étudiant / Enseignant) | `Connexion.tsx` |
+| `/` | Tableau de bord | `Dashboard.tsx` |
+| `/defis` | Catalogue de défis (recherche, filtres, favoris) | `Defis.tsx` |
+| `/defis/:id` | Page d'un défi SQL (éditeur, résultat, indices IA) | `DefiDetail.tsx` |
+| `/classement` | Classement (podium, tableau, ligues, points par semaine) | `Classement.tsx` |
+| `/duels` | Préparer un duel, invitations, camarades en ligne | `Duels.tsx` |
+| `/duels/en-direct` | Duel en direct (chrono, éditeur, tests, fil) | `DuelLive.tsx` |
+| `/profil` | Profil (onglets Aperçu, Badges, Historique, Compétences BUT) | `Profil.tsx` |
+| `/succes` | Tous les succès (pagination, réclamer) | `Succes.tsx` |
+| `/enseignant` | Tableau de bord enseignant (Mes promos) | `teacher/MesPromos.tsx` |
+| `/enseignant/challenges` | Créer un défi | `teacher/CreerDefi.tsx` |
+| `/enseignant/competences`, `/enseignant/aide` | Compétences BUT, aide | `teacher/` |
+
+Données factices : `src/data/mock.ts`, `catalog.ts`, `community.ts`, `teacher.ts`.
+
 ### Visualiser la page
 
 ```powershell

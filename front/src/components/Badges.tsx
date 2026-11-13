@@ -1,4 +1,5 @@
 import { Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { Badge } from '../types';
 import { Card, CardTitle, ProgressBar } from './ui';
 
@@ -19,9 +20,9 @@ export default function Badges({
     <Card>
       <div className="mb-4 flex items-center justify-between">
         <CardTitle>Badges</CardTitle>
-        <a href="#" className="text-xs font-semibold text-brand hover:underline">
+        <Link to="/succes" className="text-xs font-semibold text-brand hover:underline">
           Tous les badges
-        </a>
+        </Link>
       </div>
 
       <ul className="grid grid-cols-3 gap-4 sm:grid-cols-6">

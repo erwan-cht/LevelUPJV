@@ -29,8 +29,8 @@ export const challenges: Challenge[] = [
   { id: 3, title: 'Formulaire responsive', category: 'Développement web', categoryColor: 'bg-slate-400', difficulty: 'Difficile', testsPassed: 1, testsTotal: 5, points: 120, status: 'en-cours' },
   { id: 4, title: 'Recherche dichotomique', category: 'Algorithmique', categoryColor: 'bg-brand', difficulty: 'Facile', testsPassed: 0, testsTotal: 3, points: 40, status: 'recommande' },
   { id: 5, title: 'Agrégats et GROUP BY', category: 'Bases de données', categoryColor: 'bg-teal-500', difficulty: 'Moyen', testsPassed: 0, testsTotal: 5, points: 80, status: 'recommande' },
-  { id: 6, title: 'Requêtes SELECT simples', category: 'Bases de données', categoryColor: 'bg-teal-500', difficulty: 'Facile', testsPassed: 4, testsTotal: 4, points: 40, status: 'termine' },
-  { id: 7, title: 'Flexbox de base', category: 'Développement web', categoryColor: 'bg-slate-400', difficulty: 'Facile', testsPassed: 3, testsTotal: 3, points: 40, status: 'termine' },
+  { id: 6, title: 'Sélections simples', category: 'Bases de données', categoryColor: 'bg-teal-500', difficulty: 'Facile', testsPassed: 4, testsTotal: 4, points: 40, status: 'termine' },
+  { id: 7, title: 'Flexbox et Grid', category: 'Développement web', categoryColor: 'bg-slate-400', difficulty: 'Facile', testsPassed: 3, testsTotal: 3, points: 40, status: 'termine' },
 ];
 
 export const promoRanking: RankingEntry[] = [

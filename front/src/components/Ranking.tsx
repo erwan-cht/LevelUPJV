@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { RankingEntry } from '../types';
 import { Avatar, Card, CardTitle, Delta, Tabs, formatNumber } from './ui';
 
@@ -65,9 +66,9 @@ export default function Ranking({ promo, groupe }: { promo: RankingEntry[]; grou
         </p>
       )}
 
-      <a href="#" className="mt-4 inline-block text-xs font-semibold text-brand hover:underline">
+      <Link to="/classement" className="mt-4 inline-block text-xs font-semibold text-brand hover:underline">
         Voir le classement complet →
-      </a>
+      </Link>
     </Card>
   );
 }

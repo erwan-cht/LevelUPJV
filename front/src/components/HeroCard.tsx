@@ -1,4 +1,5 @@
 import { Play, User as UserIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { User } from '../types';
 import { ProgressBar, formatNumber } from './ui';
 
@@ -40,13 +41,13 @@ export default function HeroCard({ user, resumeTitle }: { user: User; resumeTitl
           </div>
 
           <div className="mt-4 flex flex-wrap gap-3">
-            <button className="flex items-center gap-2 rounded bg-brand px-4 py-2 text-xs font-semibold transition hover:brightness-110">
+            <Link to="/defis/2" className="flex items-center gap-2 rounded bg-brand px-4 py-2 text-xs font-semibold transition hover:brightness-110">
               <Play className="h-3 w-3 fill-current" />
               Reprendre : {resumeTitle}
-            </button>
-            <button className="rounded border border-white px-4 py-2 text-xs font-semibold transition hover:bg-white hover:text-navy">
+            </Link>
+            <Link to="/defis" className="rounded border border-white px-4 py-2 text-xs font-semibold transition hover:bg-white hover:text-navy">
               Parcourir les défis
-            </button>
+            </Link>
           </div>
         </div>
 
