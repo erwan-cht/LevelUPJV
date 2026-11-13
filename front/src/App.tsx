@@ -1,5 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { StudentLayout, TeacherLayout } from './components/layout/Layouts';
+import { AdminLayout, StudentLayout, TeacherLayout } from './components/layout/Layouts';
+import Comptes from './pages/admin/Comptes';
+import Contenus from './pages/admin/Contenus';
+import Promotions from './pages/admin/Promotions';
+import Referentiel from './pages/admin/Referentiel';
 import Classement from './pages/Classement';
 import Connexion from './pages/Connexion';
 import Dashboard from './pages/Dashboard';
@@ -35,6 +39,13 @@ export default function App() {
         <Route path="challenges" element={<CreerDefi />} />
         <Route path="competences" element={<Competences />} />
         <Route path="aide" element={<Aide />} />
+      </Route>
+
+      <Route path="admin" element={<AdminLayout />}>
+        <Route index element={<Comptes />} />
+        <Route path="promotions" element={<Promotions />} />
+        <Route path="contenus" element={<Contenus />} />
+        <Route path="referentiel" element={<Referentiel />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
