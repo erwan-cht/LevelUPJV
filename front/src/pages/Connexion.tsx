@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { CheckCircle2, Eye, EyeOff, Swords, Trophy, Zap } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { homeFor, useAuth, type Role } from '../auth';
+import { ApiError } from '../api';
 import Logo from '../components/layout/Logo';
 import { buttonBrand, buttonOutline, inputClass } from '../components/ui';
 
@@ -12,7 +13,7 @@ const features = [
 ];
 
 export default function Connexion() {
-  const { role: current, login } = useAuth();
+  const { role: current, login, logout } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState<Role>('etudiant');
   const [identifiant, setIdentifiant] = useState('');
@@ -20,8 +21,28 @@ export default function Connexion() {
   const [show, setShow] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   if (current) return <Navigate to={homeFor(current)} replace />;
+
+  const tryLogin = async (id: string, pwd: string) => {
+    setError('');
+    setBusy(true);
+    try {
+      const got = await login(id, pwd);
+      if (got !== role) {
+        logout();
+        const label = got === 'enseignant' ? 'Enseignant' : got === 'admin' ? 'Administrateur' : 'Étudiant';
+        setError(`Ce compte est un compte ${label.toLowerCase()} : choisis l’onglet « ${label} ».`);
+        return;
+      }
+      navigate(homeFor(got), { replace: true });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Connexion impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -29,13 +50,13 @@ export default function Connexion() {
       setError('Renseigne ton identifiant et ton mot de passe.');
       return;
     }
-    login(role);
-    navigate(homeFor(role), { replace: true });
+    void tryLogin(identifiant, password);
   };
 
+  // Raccourci de démonstration : compte de test de chaque profil (voir le seed de la base).
   const quickLogin = () => {
-    login(role);
-    navigate(homeFor(role), { replace: true });
+    const demo = { etudiant: 'oscar.lescot', enseignant: 'm.dupuis', admin: 'admin.dsi' }[role];
+    void tryLogin(demo, 'levelup123');
   };
 
   return (
@@ -148,8 +169,8 @@ export default function Connexion() {
               </p>
             )}
 
-            <button type="submit" className={`${buttonBrand} w-full py-2.5`}>
-              Se connecter
+            <button type="submit" disabled={busy} className={`${buttonBrand} w-full py-2.5`}>
+              {busy ? 'Connexion…' : 'Se connecter'}
             </button>
           </form>
 
@@ -159,7 +180,7 @@ export default function Connexion() {
             <span className="h-px flex-1 bg-slate-300" />
           </div>
 
-          <button onClick={quickLogin} className={`${buttonOutline} w-full`}>
+          <button onClick={quickLogin} disabled={busy} className={`${buttonOutline} w-full`}>
             Se connecter avec le compte UPJV
           </button>
 

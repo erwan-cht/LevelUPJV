@@ -1,43 +1,140 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle2, Lock, Star, XCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-import { catalog, sqlChallenge as sql, subjectCompetence, subjectStyles } from '../data/catalog';
+import { api, useApi } from '../api';
+import PageState from '../components/PageState';
+import { subjectStyles } from '../data/catalog';
+import { useMe } from '../me';
+import type { Subject } from '../types';
 import { Breadcrumb, buttonBrand, buttonOutline, buttonPrimary } from '../components/ui';
 
-type Result = 'idle' | 'running' | 'wrong' | 'ok';
+interface Table {
+  columns: string[];
+  rows: string[][];
+}
+
+interface ChallengeDetail {
+  id: number;
+  title: string;
+  statement: string;
+  type: string;
+  subject: Subject;
+  difficulty: string;
+  minutes: number;
+  points: number;
+  competence: string | null;
+  starterCode: string;
+  tables: (Table & { name: string })[];
+  gradable: boolean;
+  attempts: number;
+  maxAttempts: number;
+  favorite: boolean;
+  hints: { level: number; cost: number; text: string | null }[];
+}
+
+interface AttemptResponse {
+  status: 'PASSED' | 'FAILED' | 'ERROR';
+  message: string;
+  expected?: Table;
+  obtained?: Table;
+  pointsAwarded: number;
+}
+
+type Outcome =
+  | { kind: 'idle' }
+  | { kind: 'run'; result: Table & { error?: string } }
+  | ({ kind: 'attempt' } & AttemptResponse);
 
 export default function DefiDetail() {
   const { id } = useParams();
-  const challenge = catalog.find((c) => c.id === Number(id));
+  const { data, loading, error, reload } = useApi<ChallengeDetail>(`/challenges/${id}`);
 
-  const [query, setQuery] = useState(sql.initialQuery);
-  const [result, setResult] = useState<Result>('wrong');
-  const [attempt, setAttempt] = useState(2);
-  const [unlocked, setUnlocked] = useState(1);
-  const [fav, setFav] = useState(challenge?.favorite ?? false);
-
-  if (!challenge) {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm">Ce défi n’existe pas.</p>
+  return (
+    <PageState loading={loading} error={error} onRetry={reload}>
+      {data ? (
+        <DefiContent key={data.id} challenge={data} />
+      ) : (
         <Link to="/defis" className={buttonPrimary}>
           Retour aux défis
         </Link>
-      </div>
-    );
-  }
+      )}
+    </PageState>
+  );
+}
 
+const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
+  const { refreshMe } = useMe();
   const st = subjectStyles[challenge.subject];
 
-  const run = (validate: boolean) => {
-    setResult('running');
-    window.setTimeout(() => {
-      // Simulation : la requête passe quand elle utilise >= 2 et pas > 2 sur un agrégat.
-      const ok = /where\s+o\.montant\s*>\s*50/i.test(query) === false && /having/i.test(query);
-      setResult(validate && ok ? 'ok' : 'wrong');
-      if (validate) setAttempt((a) => Math.min(5, a + 1));
-    }, 600);
+  const [query, setQuery] = useState(challenge.starterCode);
+  const [outcome, setOutcome] = useState<Outcome>({ kind: 'idle' });
+  const [busy, setBusy] = useState(false);
+  const [attempts, setAttempts] = useState(challenge.attempts);
+  const [fav, setFav] = useState(challenge.favorite);
+  const [hints, setHints] = useState(challenge.hints);
+  const [seconds, setSeconds] = useState(0);
+  const [problem, setProblem] = useState('');
+
+  useEffect(() => {
+    const t = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const fail = (e: unknown) => setProblem(e instanceof Error ? e.message : 'Erreur inconnue.');
+
+  const run = async () => {
+    setBusy(true);
+    setProblem('');
+    try {
+      const result = await api<Table & { error?: string }>(`/challenges/${challenge.id}/run`, { body: { query } });
+      setOutcome({ kind: 'run', result });
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const validate = async () => {
+    setBusy(true);
+    setProblem('');
+    try {
+      const res = await api<AttemptResponse>(`/challenges/${challenge.id}/attempt`, { body: { answer: query } });
+      setOutcome({ kind: 'attempt', ...res });
+      setAttempts((a) => a + 1);
+      refreshMe();
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleFav = async () => {
+    setFav((f) => !f);
+    try {
+      await api(`/challenges/${challenge.id}/favorite`, { method: 'POST', body: {} });
+    } catch {
+      setFav((f) => !f);
+    }
+  };
+
+  const unlock = async (level: number) => {
+    setProblem('');
+    try {
+      const res = await api<{ level: number; text: string }>(`/challenges/${challenge.id}/hints`, { body: { level } });
+      setHints((list) => list.map((h) => (h.level === level ? { ...h, text: res.text } : h)));
+      refreshMe();
+    } catch (e) {
+      fail(e);
+    }
+  };
+
+  const nextLocked = hints.find((h) => h.text === null);
+  const passed = outcome.kind === 'attempt' && outcome.status === 'PASSED';
+  const comparison = outcome.kind === 'attempt' && outcome.expected && outcome.obtained ? outcome : null;
 
   return (
     <div className="space-y-5">
@@ -52,94 +149,128 @@ export default function DefiDetail() {
             <span className="rounded border border-brand bg-brand-light px-2 py-1 font-semibold text-brand">
               +{challenge.points} pts
             </span>
-            <span className="italic text-muted">Compétence BUT : {subjectCompetence[challenge.subject]}</span>
+            {challenge.competence && <span className="italic text-muted">Compétence BUT : {challenge.competence}</span>}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Meter label="Temps" value="12:34" />
-          <Meter label="Tentative" value={`${attempt} / 5`} />
-          <button onClick={() => setFav((f) => !f)} aria-pressed={fav} aria-label="Favori">
+          <Meter label="Temps" value={mmss(seconds)} />
+          <Meter label="Tentative" value={`${Math.min(attempts + 1, challenge.maxAttempts)} / ${challenge.maxAttempts}`} />
+          <button onClick={toggleFav} aria-pressed={fav} aria-label="Favori">
             <Star className={`h-6 w-6 ${fav ? 'fill-navy text-navy' : 'text-muted'}`} />
           </button>
         </div>
       </header>
+
+      {problem && (
+        <p role="alert" className="rounded-md bg-red-100 px-3 py-2 text-sm text-red-800">
+          {problem}
+        </p>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
         <div className="space-y-5">
           <section className="overflow-hidden rounded-lg border border-sky-600 bg-white">
             <h2 className="bg-sky-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">Énoncé</h2>
             <div className="space-y-3 p-4 text-sm">
-              <p>{sql.statement}</p>
-              <p>{sql.order}</p>
-              <p className="rounded bg-panel p-2 text-xs italic text-muted">{sql.note}</p>
+              <p className="whitespace-pre-line">{challenge.statement.replace(/[*`]/g, '')}</p>
+              {challenge.gradable && (
+                <p className="rounded bg-panel p-2 text-xs italic text-muted">
+                  Une seule requête SELECT. Ton résultat est comparé automatiquement au résultat attendu.
+                </p>
+              )}
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-lg border border-navy bg-white">
-            <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">Tables disponibles</h2>
-            <div className="space-y-4 p-4">
-              {sql.tables.map((t) => (
-                <div key={t.name}>
-                  <p className="mb-1 text-xs font-semibold">{t.name}</p>
-                  <DataTable columns={t.columns} rows={t.rows} />
-                </div>
-              ))}
-            </div>
-          </section>
+          {challenge.tables.length > 0 && (
+            <section className="overflow-hidden rounded-lg border border-navy bg-white">
+              <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">Tables disponibles</h2>
+              <div className="space-y-4 p-4">
+                {challenge.tables.map((t) => (
+                  <div key={t.name}>
+                    <p className="mb-1 text-xs font-semibold">{t.name}</p>
+                    <DataTable columns={t.columns} rows={t.rows} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         <div className="min-w-0 space-y-5">
           <section className="overflow-hidden rounded-lg border border-navy bg-white">
-            <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">Votre requête SQL</h2>
+            <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+              {challenge.type === 'SQL' ? 'Votre requête SQL' : 'Votre réponse'}
+            </h2>
             <div className="p-4">
-              <label className="sr-only" htmlFor="sql-editor">Éditeur de requête SQL</label>
+              <label className="sr-only" htmlFor="editor">Éditeur</label>
               <textarea
-                id="sql-editor"
+                id="editor"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 spellCheck={false}
                 rows={8}
                 className="w-full resize-y rounded-md bg-[#1b2238] p-4 font-mono text-xs leading-6 text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand"
               />
+              {!challenge.gradable && (
+                <p className="mt-2 text-xs italic text-muted">
+                  La correction automatique de ce type de défi n’est pas encore disponible.
+                </p>
+              )}
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <button onClick={() => run(false)} disabled={result === 'running'} className={buttonOutline}>
+                <button onClick={run} disabled={busy || !challenge.gradable} className={buttonOutline}>
                   Exécuter
                 </button>
-                <button onClick={() => run(true)} disabled={result === 'running'} className={buttonBrand}>
+                <button onClick={validate} disabled={busy || !challenge.gradable} className={buttonBrand}>
                   Valider ma réponse
                 </button>
-                <span className="ml-auto text-[11px] italic text-muted">Environnement isolé · limite 5 s</span>
+                <span className="ml-auto text-[11px] italic text-muted">Environnement isolé · lecture seule</span>
               </div>
             </div>
           </section>
 
-          <section className={`overflow-hidden rounded-lg border bg-white ${result === 'ok' ? 'border-green-600' : 'border-red-600'}`}>
-            <h2 className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white ${result === 'ok' ? 'bg-green-600' : 'bg-red-600'}`}>
+          <section className={`overflow-hidden rounded-lg border bg-white ${passed ? 'border-green-600' : 'border-red-600'}`}>
+            <h2 className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white ${passed ? 'bg-green-600' : 'bg-red-600'}`}>
               Résultat de l’exécution
             </h2>
             <div className="space-y-4 p-4" aria-live="polite">
-              {result === 'running' && <p className="text-sm text-muted">Exécution en cours…</p>}
-              {result === 'ok' && (
-                <p className="flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm text-green-800">
-                  <CheckCircle2 className="h-4 w-4" /> Bravo ! Résultat identique. +{challenge.points} pts
-                </p>
+              {busy && <p className="text-sm text-muted">Exécution en cours…</p>}
+              {!busy && outcome.kind === 'idle' && (
+                <p className="text-sm text-muted">Exécute ou valide ta requête pour voir le résultat ici.</p>
               )}
-              {(result === 'wrong' || result === 'idle') && (
-                <>
-                  <p className="flex items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
-                    <XCircle className="h-4 w-4 shrink-0" />
-                    Résultat différent : il manque 1 ligne ({sql.obtained.rows.length} obtenues, {sql.expected.rows.length} attendues).
-                  </p>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <p className="mb-1 text-xs font-semibold text-green-700">RÉSULTAT ATTENDU · {sql.expected.rows.length} lignes</p>
-                      <DataTable columns={sql.expected.columns} rows={sql.expected.rows} tone="bg-green-50" />
-                    </div>
-                    <div>
-                      <p className="mb-1 text-xs font-semibold text-red-700">VOTRE RÉSULTAT · {sql.obtained.rows.length} lignes</p>
-                      <DataTable columns={sql.obtained.columns} rows={sql.obtained.rows} tone="bg-red-50" />
-                    </div>
+
+              {!busy && outcome.kind === 'run' && (
+                outcome.result.error ? (
+                  <Alert tone="red">{outcome.result.error}</Alert>
+                ) : (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold">VOTRE RÉSULTAT · {outcome.result.rows.length} ligne(s)</p>
+                    <DataTable columns={outcome.result.columns} rows={outcome.result.rows} />
                   </div>
+                )
+              )}
+
+              {!busy && outcome.kind === 'attempt' && (
+                <>
+                  {outcome.status === 'PASSED' ? (
+                    <p className="flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm text-green-800">
+                      <CheckCircle2 className="h-4 w-4" /> {outcome.message}
+                      {outcome.pointsAwarded > 0 ? ` +${outcome.pointsAwarded} pts` : ' (points déjà obtenus)'}
+                    </p>
+                  ) : (
+                    <Alert tone="red">{outcome.message}</Alert>
+                  )}
+                  {comparison && (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <p className="mb-1 text-xs font-semibold text-green-700">RÉSULTAT ATTENDU · {comparison.expected!.rows.length} ligne(s)</p>
+                        <DataTable columns={comparison.expected!.columns} rows={comparison.expected!.rows} tone="bg-green-50" />
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs font-semibold text-red-700">VOTRE RÉSULTAT · {comparison.obtained!.rows.length} ligne(s)</p>
+                        <DataTable columns={comparison.obtained!.columns} rows={comparison.obtained!.rows} tone={passed ? 'bg-green-50' : 'bg-red-50'} />
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -149,21 +280,21 @@ export default function DefiDetail() {
 
       <section className="overflow-hidden rounded-lg border border-navy bg-white">
         <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
-          Indices IA · sans donner la réponse
+          Indices · sans donner la réponse
         </h2>
         <div className="p-4">
           <div className="grid gap-3 md:grid-cols-3">
-            {sql.hints.map((h, i) => {
-              const open = i < unlocked;
+            {hints.map((h) => {
+              const open = h.text !== null;
               return (
                 <div
-                  key={h.title}
+                  key={h.level}
                   className={`rounded-md border p-3 text-xs ${open ? 'border-brand bg-brand-light' : 'border-slate-200 bg-panel text-muted'}`}
                 >
                   <p className="mb-1 flex items-center justify-between font-semibold">
                     <span className="flex items-center gap-1.5">
                       {!open && <Lock className="h-3 w-3" />}
-                      {h.title}{!open && ' · verrouillé'}
+                      Indice {h.level}{!open && ' · verrouillé'}
                     </span>
                     <span className={open ? 'text-[10px] font-bold text-brand' : ''}>
                       {h.cost === 0 ? 'GRATUIT' : `-${h.cost} pts`}
@@ -174,14 +305,23 @@ export default function DefiDetail() {
               );
             })}
           </div>
-          {unlocked < sql.hints.length && (
-            <button onClick={() => setUnlocked((u) => u + 1)} className={`${buttonOutline} mt-3`}>
-              Débloquer l’indice {unlocked + 1}
+          {nextLocked && (
+            <button onClick={() => unlock(nextLocked.level)} className={`${buttonOutline} mt-3`}>
+              Débloquer l’indice {nextLocked.level}
+              {nextLocked.cost > 0 && ` (-${nextLocked.cost} pts)`}
             </button>
           )}
         </div>
       </section>
     </div>
+  );
+}
+
+function Alert({ tone, children }: { tone: 'red'; children: React.ReactNode }) {
+  return (
+    <p className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${tone === 'red' ? 'border-red-300 bg-red-50 text-red-800' : ''}`}>
+      <XCircle className="h-4 w-4 shrink-0" /> {children}
+    </p>
   );
 }
 
@@ -213,6 +353,11 @@ function DataTable({ columns, rows, tone = 'bg-white' }: { columns: string[]; ro
               ))}
             </tr>
           ))}
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={Math.max(columns.length, 1)} className="px-3 py-2 text-muted">Aucune ligne.</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

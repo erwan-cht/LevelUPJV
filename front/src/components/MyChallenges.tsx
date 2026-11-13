@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Flag } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { catalog } from '../data/catalog';
 import type { Challenge, ChallengeStatus } from '../types';
 import { Card, CardTitle, ProgressBar, Tabs } from './ui';
 
@@ -68,7 +67,7 @@ function ChallengeRow({ challenge: c }: { challenge: Challenge }) {
       <span className="w-16 shrink-0 text-right text-sm font-bold text-brand">+{c.points} pts</span>
 
       <Link
-        to={`/defis/${catalog.find((x) => x.title === c.title)?.id ?? 2}`}
+        to={`/defis/${c.id}`}
         className="w-24 shrink-0 rounded bg-navy py-2 text-center text-xs font-semibold text-white transition hover:bg-navy-light"
       >
         {action}

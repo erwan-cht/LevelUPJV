@@ -4,7 +4,8 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../src/db.js';
 
-const PASSWORD = 'levelup123';
+// Mot de passe des comptes de test. Sur un serveur public, définir SEED_PASSWORD avec une valeur secrète.
+const PASSWORD = process.env.SEED_PASSWORD ?? 'levelup123';
 
 // ───────────── Compétences du référentiel ─────────────
 const competences = [
@@ -187,9 +188,41 @@ async function main() {
     });
   }
 
+  // Administrateur
+  await prisma.user.upsert({
+    where: { email: 'admin.dsi@iut.example' },
+    update: {},
+    create: { email: 'admin.dsi@iut.example', passwordHash, role: 'ADMIN', firstName: 'Service', lastName: 'DSI', pseudo: 'admin-dsi' },
+  });
+
+  // Activité de démonstration pour Oscar (une seule fois) : points des 7 derniers jours et badges
+  const oscar = await prisma.user.findUnique({ where: { email: 'oscar.lescot@etu.example' } });
+  if (oscar && (await prisma.pointEvent.count({ where: { userId: oscar.id } })) === 0) {
+    const perDay = [0, 0, 50, 60, 120, 90, 60]; // du plus ancien (J-6) à aujourd'hui
+    const events = perDay.flatMap((points, i) => {
+      if (points === 0) return [];
+      const at = new Date(Date.now() - (6 - i) * 86_400_000);
+      at.setHours(12, 0, 0, 0);
+      if (at.getTime() > Date.now()) at.setTime(Date.now() - 60_000);
+      return [{ userId: oscar.id, points, xp: points, reason: 'demo', createdAt: at }];
+    });
+    await prisma.pointEvent.createMany({ data: events });
+    for (const slugName of ['premier-pas', 'sql-master', 'serie-5-jours', 'top-10-promo']) {
+      const badge = await prisma.badge.findUnique({ where: { slug: slugName } });
+      if (badge) {
+        await prisma.userBadge.upsert({
+          where: { userId_badgeId: { userId: oscar.id, badgeId: badge.id } },
+          update: {},
+          create: { userId: oscar.id, badgeId: badge.id },
+        });
+      }
+    }
+    await prisma.user.update({ where: { id: oscar.id }, data: { streakDays: 5, lastActiveDay: new Date() } });
+  }
+
   const [users, chals] = await Promise.all([prisma.user.count(), prisma.challenge.count()]);
   console.log(`✔ Seed terminé : ${users} utilisateurs, ${chals} défis, ${badges.length} badges.`);
-  console.log(`  Connexion de test : <prénom>.<nom>@etu.example / ${PASSWORD}`);
+  console.log(`  Connexion de test : <prénom>.<nom>@etu.example / ${process.env.SEED_PASSWORD ? '(SEED_PASSWORD)' : PASSWORD}`);
 }
 
 main()

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { User } from '../types';
 import { ProgressBar, formatNumber } from './ui';
 
-export default function HeroCard({ user, resumeTitle }: { user: User; resumeTitle: string }) {
+export default function HeroCard({ user, resumeTitle, resumeId }: { user: User; resumeTitle: string; resumeId?: number }) {
   const xpLeft = user.xpNextLevel - user.xp;
 
   return (
@@ -41,7 +41,7 @@ export default function HeroCard({ user, resumeTitle }: { user: User; resumeTitl
           </div>
 
           <div className="mt-4 flex flex-wrap gap-3">
-            <Link to="/defis/2" className="flex items-center gap-2 rounded bg-brand px-4 py-2 text-xs font-semibold transition hover:brightness-110">
+            <Link to={resumeId ? `/defis/${resumeId}` : '/defis'} className="flex items-center gap-2 rounded bg-brand px-4 py-2 text-xs font-semibold transition hover:brightness-110">
               <Play className="h-3 w-3 fill-current" />
               Reprendre : {resumeTitle}
             </Link>

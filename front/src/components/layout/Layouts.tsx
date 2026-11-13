@@ -1,26 +1,36 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { homeFor, useAuth } from '../../auth';
 import { AdminProvider } from '../../pages/admin/store';
-import { currentUser } from '../../data/mock';
+import { MeProvider, useMe } from '../../me';
 import { teacher } from '../../data/teacher';
 import Header, { studentNav, type NavItem } from '../Header';
 import { formatNumber } from '../ui';
 import Footer from './Footer';
 
-/** Espace étudiant : en-tête, contenu, pied de page. Redirige vers la connexion sinon. */
+/** En-tête de l'espace étudiant : affiche les points réels de l'étudiant connecté. */
+function StudentShell() {
+  const { me } = useMe();
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header links={studentNav} chip={me ? `${formatNumber(me.points)} pts` : '… pts'} profilePath="/profil" />
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+        <Outlet />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+/** Espace étudiant : redirige vers la connexion sans jeton, et vers l'accueil du bon rôle sinon. */
 export function StudentLayout() {
   const { role } = useAuth();
   if (!role) return <Navigate to="/connexion" replace />;
   if (role !== 'etudiant') return <Navigate to={homeFor(role)} replace />;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header links={studentNav} chip={`${formatNumber(currentUser.points)} pts`} profilePath="/profil" />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-        <Outlet />
-      </main>
-      <Footer />
-    </div>
+    <MeProvider>
+      <StudentShell />
+    </MeProvider>
   );
 }
 

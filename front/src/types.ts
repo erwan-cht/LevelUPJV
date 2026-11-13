@@ -142,3 +142,16 @@ export interface Competence {
   description: string;
   value: number;
 }
+
+// ---------- Réponses de l'API ----------
+export interface ApiUser extends User {
+  id: number;
+  lastName: string;
+  email: string;
+  group: string | null;
+  streakDays: number;
+}
+
+export interface ApiChallenge extends CatalogChallenge {
+  type: 'SQL' | 'ALGO' | 'WEB' | 'NETWORK';
+}

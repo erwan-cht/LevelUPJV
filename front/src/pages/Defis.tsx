@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Clock, Database, FlaskConical, Network, Search, Star, Code2, Globe, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { catalog, subjectCompetence, subjectStyles, subjects } from '../data/catalog';
-import type { CatalogChallenge, Difficulty, Subject } from '../types';
+import { api, useApi } from '../api';
+import PageState from '../components/PageState';
+import { subjectCompetence, subjectStyles, subjects } from '../data/catalog';
+import type { ApiChallenge, CatalogChallenge, Difficulty, Subject } from '../types';
 import { Breadcrumb, DifficultyDots, PageTitle, ProgressBar, Segmented } from '../components/ui';
 
 const subjectIcon: Record<Subject, typeof Database> = {
@@ -16,6 +18,15 @@ type StatusFilter = 'Tous' | 'À faire' | 'En cours' | 'Terminés';
 type SortKey = 'Recommandé' | 'Points' | 'Durée';
 
 export default function Defis() {
+  const { data, loading, error, reload } = useApi<ApiChallenge[]>('/challenges');
+  return (
+    <PageState loading={loading} error={error} onRetry={reload}>
+      {data && <DefisContent catalog={data} />}
+    </PageState>
+  );
+}
+
+function DefisContent({ catalog }: { catalog: ApiChallenge[] }) {
   const [query, setQuery] = useState('');
   const [difficulty, setDifficulty] = useState<'Toutes' | Difficulty>('Toutes');
   const [status, setStatus] = useState<StatusFilter>('Tous');
@@ -24,13 +35,17 @@ export default function Defis() {
     () => new Set(catalog.filter((c) => c.favorite).map((c) => c.id)),
   );
 
-  const toggleFav = (id: number) =>
-    setFavorites((prev) => {
+  const toggleFav = (id: number) => {
+    const flip = (prev: Set<number>) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
-    });
+    };
+    setFavorites(flip);
+    // Si l'enregistrement échoue, on annule le changement affiché.
+    api(`/challenges/${id}/favorite`, { method: 'POST', body: {} }).catch(() => setFavorites(flip));
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

@@ -1,27 +1,55 @@
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { students, leagues, weeklyPoints } from '../data/community';
-import { currentUser } from '../data/mock';
+import { useApi } from '../api';
+import PageState from '../components/PageState';
+import { leagues } from '../data/community';
+import { useMe } from '../me';
+import type { Student } from '../types';
 import { Avatar, Breadcrumb, Card, CardTitle, Delta, PageTitle, ProgressBar, Tabs, formatNumber } from '../components/ui';
 
 type Scope = 'promo' | 'groupe';
 
+interface RankingData {
+  entries: Student[];
+  weekly: { label: string; points: number }[];
+}
+
 export default function Classement() {
   const [scope, setScope] = useState<Scope>('promo');
+  const { data, loading, error, reload } = useApi<RankingData>(`/ranking?scope=${scope}`);
+
+  return (
+    <PageState loading={loading && !data} error={error} onRetry={reload}>
+      {data && <ClassementContent students={data.entries} weeklyPoints={data.weekly} scope={scope} setScope={setScope} />}
+    </PageState>
+  );
+}
+
+function ClassementContent({
+  students,
+  weeklyPoints,
+  scope,
+  setScope,
+}: {
+  students: Student[];
+  weeklyPoints: { label: string; points: number }[];
+  scope: Scope;
+  setScope: (s: Scope) => void;
+}) {
+  const { me } = useMe();
+  const points = me?.points ?? 0;
   const [query, setQuery] = useState('');
   const [promotion, setPromotion] = useState('BUT 2 Informatique');
   const [saison, setSaison] = useState('Saison 2025-2026');
 
   const list = useMemo(() => {
-    const base = scope === 'groupe' ? students.filter((s) => s.group.endsWith('Groupe 2')) : students;
-    const ranked = base.map((s, i) => ({ ...s, rank: i + 1 }));
     const q = query.trim().toLowerCase();
-    return q ? ranked.filter((s) => s.name.toLowerCase().includes(q)) : ranked;
-  }, [scope, query]);
+    return q ? students.filter((s) => s.name.toLowerCase().includes(q)) : students;
+  }, [students, query]);
 
   const podium = students.slice(0, 3);
   const order = [podium[1], podium[0], podium[2]];
-  const maxWeek = Math.max(...weeklyPoints.map((w) => w.points));
+  const maxWeek = Math.max(1, ...weeklyPoints.map((w) => w.points));
   const nextLeague = leagues[2];
   const ordinals = ['1er', '2e', '3e'];
 
@@ -124,9 +152,9 @@ export default function Classement() {
               ))}
             </ul>
             <p className="mt-4 text-xs font-semibold">Vers la ligue {nextLeague.name}</p>
-            <ProgressBar value={currentUser.points} max={nextLeague.min} color="bg-brand" track="bg-white" height="h-2" />
+            <ProgressBar value={points} max={nextLeague.min} color="bg-brand" track="bg-white" height="h-2" />
             <p className="mt-1 text-[11px] text-muted">
-              {formatNumber(currentUser.points)} / {formatNumber(nextLeague.min)} · Encore {nextLeague.min - currentUser.points} pts pour monter en ligue {nextLeague.name}.
+              {formatNumber(points)} / {formatNumber(nextLeague.min)} · Encore {nextLeague.min - points} pts pour monter en ligue {nextLeague.name}.
             </p>
           </Card>
 
@@ -145,7 +173,7 @@ export default function Classement() {
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-muted">+410 pts cette semaine : ta meilleure à ce jour.</p>
+            <p className="mt-3 text-xs text-muted">{weeklyPoints[weeklyPoints.length - 1]?.points ?? 0} pts gagnés cette semaine.</p>
           </Card>
         </aside>
       </div>

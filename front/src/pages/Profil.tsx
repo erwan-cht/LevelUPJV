@@ -3,7 +3,7 @@ import { Check, Pencil, Star, User as UserIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { competenceSkills, fullHistory, heatmap, profileBadges, recentSuccess, subjectProgress } from '../data/community';
 import { subjectStyles } from '../data/catalog';
-import { currentUser } from '../data/mock';
+import { useMe } from '../me';
 import { Breadcrumb, Card, CardTitle, ProgressBar, Toggle, buttonOutline, formatNumber } from '../components/ui';
 
 type Tab = 'apercu' | 'badges' | 'historique' | 'competences';
@@ -11,6 +11,7 @@ type Tab = 'apercu' | 'badges' | 'historique' | 'competences';
 const heatColors = ['bg-slate-200', 'bg-amber-200', 'bg-amber-400', 'bg-brand', 'bg-amber-700'];
 
 export default function Profil() {
+  const { me } = useMe();
   const [tab, setTab] = useState<Tab>('apercu');
   const [showInRanking, setShowInRanking] = useState(true);
   const [duelInvites, setDuelInvites] = useState(true);
@@ -39,25 +40,25 @@ export default function Profil() {
         </div>
 
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">Oscar Lescot</h1>
-          <p className="text-xs text-slate-300">BUT 2 Informatique · Groupe 2 · Membre depuis septembre 2025</p>
+          <h1 className="text-2xl font-bold">{me ? `${me.firstName} ${me.lastName}` : '…'}</h1>
+          <p className="text-xs text-slate-300">{me?.group ?? me?.formation ?? ''} · Membre depuis septembre 2025</p>
           <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
-            <span className="rounded bg-brand px-2 py-1">Ligue Argent</span>
-            <span className="rounded bg-white/15 px-2 py-1">Rang #{currentUser.promoRank} de la promo</span>
-            <span className="rounded bg-white/15 px-2 py-1">Série : 5 jours</span>
+            <span className="rounded bg-brand px-2 py-1">{me?.league ?? 'Ligue'}</span>
+            <span className="rounded bg-white/15 px-2 py-1">Rang #{me?.promoRank ?? '–'} de la promo</span>
+            <span className="rounded bg-white/15 px-2 py-1">Série : {me?.streakDays ?? 0} jour(s)</span>
           </div>
           <div className="mt-3">
             <div className="flex justify-between text-xs">
-              <span className="font-semibold text-brand">Niveau {currentUser.level}</span>
-              <span>{formatNumber(currentUser.xp)} / {formatNumber(currentUser.xpNextLevel)} XP</span>
+              <span className="font-semibold text-brand">Niveau {me?.level ?? 1}</span>
+              <span>{formatNumber(me?.xp ?? 0)} / {formatNumber(me?.xpNextLevel ?? 0)} XP</span>
             </div>
-            <ProgressBar value={currentUser.xp} max={currentUser.xpNextLevel} color="bg-brand" track="bg-white/20" height="h-2" />
+            <ProgressBar value={me?.xp ?? 0} max={me?.xpNextLevel ?? 1} color="bg-brand" track="bg-white/20" height="h-2" />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           {[
-            ['Points', formatNumber(currentUser.points), 'cette saison'],
+            ['Points', formatNumber(me?.points ?? 0), 'cette saison'],
             ['Défis réussis', '43', 'sur 120'],
             ['Badges', '4 / 12', 'débloqués'],
             ['Record de série', '12 j', 'meilleure série'],
