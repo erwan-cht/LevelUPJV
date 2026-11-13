@@ -2,16 +2,24 @@ import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useApi } from '../api';
 import PageState from '../components/PageState';
-import { leagues } from '../data/community';
+import { leagueColors } from '../subjects';
 import { useMe } from '../me';
 import type { Student } from '../types';
 import { Avatar, Breadcrumb, Card, CardTitle, Delta, PageTitle, ProgressBar, Tabs, formatNumber } from '../components/ui';
 
 type Scope = 'promo' | 'groupe';
 
+interface League {
+  name: string;
+  min: number;
+}
+
 interface RankingData {
   entries: Student[];
   weekly: { label: string; points: number }[];
+  leagues: League[];
+  league: string;
+  scopeLabel: string;
 }
 
 export default function Classement() {
@@ -20,27 +28,16 @@ export default function Classement() {
 
   return (
     <PageState loading={loading && !data} error={error} onRetry={reload}>
-      {data && <ClassementContent students={data.entries} weeklyPoints={data.weekly} scope={scope} setScope={setScope} />}
+      {data && <ClassementContent data={data} scope={scope} setScope={setScope} />}
     </PageState>
   );
 }
 
-function ClassementContent({
-  students,
-  weeklyPoints,
-  scope,
-  setScope,
-}: {
-  students: Student[];
-  weeklyPoints: { label: string; points: number }[];
-  scope: Scope;
-  setScope: (s: Scope) => void;
-}) {
+function ClassementContent({ data, scope, setScope }: { data: RankingData; scope: Scope; setScope: (s: Scope) => void }) {
   const { me } = useMe();
   const points = me?.points ?? 0;
+  const { entries: students, weekly: weeklyPoints, leagues, league } = data;
   const [query, setQuery] = useState('');
-  const [promotion, setPromotion] = useState('BUT 2 Informatique');
-  const [saison, setSaison] = useState('Saison 2025-2026');
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -48,15 +45,16 @@ function ClassementContent({
   }, [students, query]);
 
   const podium = students.slice(0, 3);
-  const order = [podium[1], podium[0], podium[2]];
+  const order = [podium[1], podium[0], podium[2]].filter(Boolean);
   const maxWeek = Math.max(1, ...weeklyPoints.map((w) => w.points));
-  const nextLeague = leagues[2];
+  // Ligue suivante : la plus proche au-dessus des points actuels (aucune pour la plus haute).
+  const nextLeague = [...leagues].filter((l) => l.min > points).sort((a, b) => a.min - b.min)[0];
   const ordinals = ['1er', '2e', '3e'];
 
   return (
     <div className="space-y-5">
       <Breadcrumb items={[{ label: 'Accueil', to: '/' }, { label: 'Classement' }]} />
-      <PageTitle title="Classement" subtitle={`${saison} · mis à jour il y a 4 minutes`}>
+      <PageTitle title="Classement" subtitle={`${data.scopeLabel} · ${students.length} étudiant${students.length > 1 ? 's' : ''}`}>
         <label className="relative">
           <span className="sr-only">Rechercher un étudiant</span>
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
@@ -71,8 +69,6 @@ function ClassementContent({
 
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <Tabs tabs={[{ id: 'promo', label: 'Ma promo' }, { id: 'groupe', label: 'Mon groupe' }]} value={scope} onChange={setScope} />
-        <Select label="Promotion" value={promotion} onChange={setPromotion} options={['BUT 1 Informatique', 'BUT 2 Informatique', 'BUT 3 Informatique']} />
-        <Select label="Saison" value={saison} onChange={setSaison} options={['Saison 2025-2026', 'Saison 2024-2025']} />
       </div>
 
       {/* Podium */}
@@ -140,22 +136,28 @@ function ClassementContent({
 
         <aside className="space-y-5">
           <Card>
-            <CardTitle>Ma ligue · Argent</CardTitle>
+            <CardTitle>Ma ligue · {league}</CardTitle>
             <ul className="mt-3 space-y-1.5 text-xs">
               {leagues.map((l) => (
-                <li key={l.name} className={`flex items-center justify-between rounded px-2 py-1.5 ${l.name === 'Argent' ? 'bg-white font-semibold ring-1 ring-brand' : ''}`}>
+                <li key={l.name} className={`flex items-center justify-between rounded px-2 py-1.5 ${l.name === league ? 'bg-white font-semibold ring-1 ring-brand' : ''}`}>
                   <span className="flex items-center gap-2">
-                    <span className={`h-3 w-3 rounded-full ${l.color}`} /> {l.name}
+                    <span className={`h-3 w-3 rounded-full ${leagueColors[l.name] ?? 'bg-slate-300'}`} /> {l.name}
                   </span>
                   <span className="text-muted">{formatNumber(l.min)}+ pts</span>
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-xs font-semibold">Vers la ligue {nextLeague.name}</p>
-            <ProgressBar value={points} max={nextLeague.min} color="bg-brand" track="bg-white" height="h-2" />
-            <p className="mt-1 text-[11px] text-muted">
-              {formatNumber(points)} / {formatNumber(nextLeague.min)} · Encore {nextLeague.min - points} pts pour monter en ligue {nextLeague.name}.
-            </p>
+            {nextLeague ? (
+              <>
+                <p className="mt-4 text-xs font-semibold">Vers la ligue {nextLeague.name}</p>
+                <ProgressBar value={points} max={nextLeague.min} color="bg-brand" track="bg-white" height="h-2" />
+                <p className="mt-1 text-[11px] text-muted">
+                  {formatNumber(points)} / {formatNumber(nextLeague.min)} · Encore {formatNumber(nextLeague.min - points)} pts pour monter en ligue {nextLeague.name}.
+                </p>
+              </>
+            ) : (
+              <p className="mt-4 text-xs font-semibold">Tu es dans la ligue la plus haute. Bravo !</p>
+            )}
           </Card>
 
           <Card>
@@ -181,19 +183,3 @@ function ClassementContent({
   );
 }
 
-function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
-  return (
-    <label className="flex items-center gap-2">
-      <span className="text-muted">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs focus:border-brand focus:outline-none"
-      >
-        {options.map((o) => (
-          <option key={o}>{o}</option>
-        ))}
-      </select>
-    </label>
-  );
-}

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Lock, Star, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Lock, Star, XCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { api, useApi } from '../api';
 import PageState from '../components/PageState';
-import { subjectStyles } from '../data/catalog';
+import { subjectStyles } from '../subjects';
 import { useMe } from '../me';
 import type { Subject } from '../types';
 import { Breadcrumb, buttonBrand, buttonOutline, buttonPrimary } from '../components/ui';
@@ -27,7 +27,8 @@ interface ChallengeDetail {
   tables: (Table & { name: string })[];
   gradable: boolean;
   attempts: number;
-  maxAttempts: number;
+  /** null : tentatives illimitées. */
+  maxAttempts: number | null;
   favorite: boolean;
   hints: { level: number; cost: number; text: string | null }[];
 }
@@ -140,6 +141,10 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
     <div className="space-y-5">
       <Breadcrumb items={[{ label: 'Accueil', to: '/' }, { label: 'Défis', to: '/defis' }, { label: challenge.subject }, { label: challenge.title }]} />
 
+      <Link to="/defis" className={`${buttonOutline} px-3 py-1.5 text-xs`}>
+        <ArrowLeft className="h-3.5 w-3.5" /> Retour aux défis
+      </Link>
+
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">{challenge.title}</h1>
@@ -154,7 +159,10 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
         </div>
         <div className="flex items-center gap-3">
           <Meter label="Temps" value={mmss(seconds)} />
-          <Meter label="Tentative" value={`${Math.min(attempts + 1, challenge.maxAttempts)} / ${challenge.maxAttempts}`} />
+          <Meter
+            label="Tentative"
+            value={challenge.maxAttempts === null ? `${attempts + 1}` : `${Math.min(attempts + 1, challenge.maxAttempts)} / ${challenge.maxAttempts}`}
+          />
           <button onClick={toggleFav} aria-pressed={fav} aria-label="Favori">
             <Star className={`h-6 w-6 ${fav ? 'fill-navy text-navy' : 'text-muted'}`} />
           </button>

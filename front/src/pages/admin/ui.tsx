@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
-import { roleLabel, statusLabel, type AccountRole, type AccountStatus } from '../../data/admin';
+import { formatWhen, roleLabel, statusLabel, type AccountRole, type AccountStatus } from '../../format';
 import { buttonOutline, buttonPrimary } from '../../components/ui';
 import { useAdmin } from './store';
 
@@ -145,7 +145,7 @@ export function AuditLog() {
         {audit.map((a) => (
           <li key={a.id} className="px-4 py-2.5">
             <p className="text-xs">{a.text}</p>
-            <p className="text-[10px] text-muted">{a.at}</p>
+            <p className="text-[10px] text-muted">{formatWhen(a.at)}</p>
           </li>
         ))}
       </ol>

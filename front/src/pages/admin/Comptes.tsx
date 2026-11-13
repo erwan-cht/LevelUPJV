@@ -2,27 +2,28 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Check, Download, KeyRound, Pencil, Search, ShieldOff, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import {
   emailOf,
-  initialsOf,
+  formatDay,
+  formatWhen,
   promoKey,
   roleLabel,
   statusLabel,
-  type Account,
   type AccountRole,
   type AccountStatus,
-} from '../../data/admin';
+} from '../../format';
+import { useMe } from '../../me';
 import { Avatar, Breadcrumb, PageTitle, buttonBrand, buttonOutline, buttonPrimary, inputClass } from '../../components/ui';
-import { useAdmin } from './store';
+import { useAdmin, type Account, type AccountDraft, type Credential } from './store';
 import { AuditLog, ConfirmDialog, Field, Modal, RoleBadge, StatCard, StatusBadge, selectClass, useToast } from './ui';
 
 const PAGE_SIZE = 10;
 const NO_GROUP = 'Sans groupe';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type Draft = Omit<Account, 'id' | 'initials' | 'lastLogin' | 'createdAt'>;
 type Confirm = { kind: 'delete' | 'reset'; ids: number[] } | null;
 
 export default function Comptes() {
-  const { accounts, setAccounts, promotions, log } = useAdmin();
+  const { accounts, promotions, createAccount, updateAccount, setAccountStatus, deleteAccounts, resetPasswords } = useAdmin();
+  const { me } = useMe();
   const toast = useToast();
 
   const [query, setQuery] = useState('');
@@ -33,6 +34,7 @@ export default function Comptes() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [editing, setEditing] = useState<Account | 'new' | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
+  const [credentials, setCredentials] = useState<Credential[] | null>(null);
 
   const promoOptions = useMemo(
     () => [...promotions.flatMap((p) => p.groups.map((g) => promoKey(p.name, g))), NO_GROUP],
@@ -79,53 +81,52 @@ export default function Comptes() {
       return n;
     });
 
-  const setStatusOf = (ids: number[], next: AccountStatus) => {
-    setAccounts((list) => list.map((a) => (ids.includes(a.id) ? { ...a, status: next } : a)));
-    const verb = next === 'suspendu' ? 'suspendu' : next === 'actif' ? 'activé' : 'mis en attente';
-    log(`${ids.length === 1 ? 'Compte de ' : ''}${describe(ids)} ${verb}${ids.length > 1 && next !== 'en-attente' ? 's' : ''}`);
-    toast.show(`${describe(ids)} : ${statusLabel[next].toLowerCase()}`);
-    setSelected(new Set());
-  };
-
-  const remove = (ids: number[]) => {
-    const label = describe(ids);
-    setAccounts((list) => list.filter((a) => !ids.includes(a.id)));
-    log(`${ids.length === 1 ? 'Compte de ' : ''}${label} supprimé${ids.length > 1 ? 's' : ''}`);
-    toast.show(`${label} supprimé${ids.length > 1 ? 's' : ''}`);
-    setSelected(new Set());
-  };
-
-  const resetPassword = (ids: number[]) => {
-    log(`Réinitialisation du mot de passe envoyée à ${describe(ids)}`);
-    toast.show(`Lien de réinitialisation envoyé à ${describe(ids)}`);
-    setSelected(new Set());
-  };
-
-  const save = (draft: Draft) => {
-    if (editing === 'new') {
-      const id = Math.max(0, ...accounts.map((a) => a.id)) + 1;
-      const today = new Date().toLocaleDateString('fr-FR');
-      setAccounts((list) => [
-        { ...draft, id, initials: initialsOf(draft.name), lastLogin: 'Jamais', createdAt: today },
-        ...list,
-      ]);
-      log(`Compte de ${draft.name} créé (${roleLabel[draft.role].toLowerCase()})`);
-      toast.show(`Compte de ${draft.name} créé, invitation envoyée`);
-    } else if (editing) {
-      setAccounts((list) =>
-        list.map((a) => (a.id === editing.id ? { ...a, ...draft, initials: initialsOf(draft.name) } : a)),
-      );
-      if (editing.role !== draft.role) log(`Rôle de ${draft.name} : ${roleLabel[editing.role]} → ${roleLabel[draft.role]}`);
-      else log(`Compte de ${draft.name} modifié`);
-      toast.show(`Compte de ${draft.name} enregistré`);
+  /** Exécute une action de l'API et annonce le résultat (ou l'erreur renvoyée par le serveur). */
+  const run = async (action: () => Promise<void>, done: string) => {
+    try {
+      await action();
+      toast.show(done);
+      setSelected(new Set());
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Action impossible.');
     }
-    setEditing(null);
+  };
+
+  const setStatusOf = (ids: number[], next: AccountStatus) =>
+    run(() => setAccountStatus(ids, next), `${describe(ids)} : ${statusLabel[next].toLowerCase()}`);
+
+  const remove = (ids: number[]) =>
+    run(() => deleteAccounts(ids), `${describe(ids)} supprimé${ids.length > 1 ? 's' : ''}`);
+
+  const resetPassword = async (ids: number[]) => {
+    try {
+      setCredentials(await resetPasswords(ids));
+      setSelected(new Set());
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Action impossible.');
+    }
+  };
+
+  /** Enregistre le formulaire ; renvoie le message d'erreur du serveur, ou null en cas de succès. */
+  const save = async (draft: AccountDraft): Promise<string | null> => {
+    try {
+      if (editing === 'new') {
+        setCredentials([await createAccount(draft)]);
+      } else if (editing) {
+        await updateAccount(editing.id, draft);
+        toast.show(`Compte de ${draft.name} enregistré`);
+      }
+      setEditing(null);
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : 'Enregistrement impossible.';
+    }
   };
 
   const exportCsv = () => {
     const head = ['Nom', 'E-mail', 'Rôle', 'Promotion', 'Statut', 'Dernière connexion', 'Créé le'];
     const lines = filtered.map((a) =>
-      [a.name, a.email, roleLabel[a.role], a.promo, statusLabel[a.status], a.lastLogin, a.createdAt]
+      [a.name, a.email, roleLabel[a.role], a.promo, statusLabel[a.status], formatWhen(a.lastLogin), formatDay(a.createdAt)]
         .map((v) => `"${v.replace(/"/g, '""')}"`)
         .join(';'),
     );
@@ -229,40 +230,43 @@ export default function Comptes() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((a) => (
-                  <tr key={a.id} className={selected.has(a.id) ? 'bg-brand-light/50' : 'hover:bg-slate-50'}>
-                    <td className="px-3 py-2.5">
-                      <input type="checkbox" aria-label={`Sélectionner ${a.name}`} checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar initials={a.initials} size="h-8 w-8 text-xs" color={a.role === 'admin' ? 'bg-brand' : a.role === 'enseignant' ? 'bg-sky-600' : 'bg-navy'} />
-                        <div className="min-w-0">
-                          <p className="font-semibold">{a.name}</p>
-                          <p className="truncate text-[11px] text-muted">{a.email}</p>
+                {rows.map((a) => {
+                  const self = a.id === me?.id;
+                  return (
+                    <tr key={a.id} className={selected.has(a.id) ? 'bg-brand-light/50' : 'hover:bg-slate-50'}>
+                      <td className="px-3 py-2.5">
+                        <input type="checkbox" aria-label={`Sélectionner ${a.name}`} checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar initials={a.initials} size="h-8 w-8 text-xs" color={a.role === 'admin' ? 'bg-brand' : a.role === 'enseignant' ? 'bg-sky-600' : 'bg-navy'} />
+                          <div className="min-w-0">
+                            <p className="font-semibold">{a.name}{self && <span className="ml-1 text-[11px] font-normal text-muted">(toi)</span>}</p>
+                            <p className="truncate text-[11px] text-muted">{a.email}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5"><RoleBadge role={a.role} /></td>
-                    <td className="px-3 py-2.5 text-xs">{a.promo}</td>
-                    <td className="px-3 py-2.5"><StatusBadge status={a.status} /></td>
-                    <td className="px-3 py-2.5 text-xs text-muted">{a.lastLogin}</td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex justify-end gap-0.5">
-                        {a.status === 'en-attente' ? (
-                          <IconButton label={`Valider ${a.name}`} onClick={() => setStatusOf([a.id], 'actif')}><Check className="h-4 w-4 text-green-600" /></IconButton>
-                        ) : a.status === 'actif' ? (
-                          <IconButton label={`Suspendre ${a.name}`} onClick={() => setStatusOf([a.id], 'suspendu')}><ShieldOff className="h-4 w-4" /></IconButton>
-                        ) : (
-                          <IconButton label={`Réactiver ${a.name}`} onClick={() => setStatusOf([a.id], 'actif')}><ShieldCheck className="h-4 w-4 text-green-600" /></IconButton>
-                        )}
-                        <IconButton label={`Réinitialiser le mot de passe de ${a.name}`} onClick={() => setConfirm({ kind: 'reset', ids: [a.id] })}><KeyRound className="h-4 w-4" /></IconButton>
-                        <IconButton label={`Modifier ${a.name}`} onClick={() => setEditing(a)}><Pencil className="h-4 w-4" /></IconButton>
-                        <IconButton label={`Supprimer ${a.name}`} onClick={() => setConfirm({ kind: 'delete', ids: [a.id] })}><Trash2 className="h-4 w-4 text-red-600" /></IconButton>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-3 py-2.5"><RoleBadge role={a.role} /></td>
+                      <td className="px-3 py-2.5 text-xs">{a.promo}</td>
+                      <td className="px-3 py-2.5"><StatusBadge status={a.status} /></td>
+                      <td className="px-3 py-2.5 text-xs text-muted">{formatWhen(a.lastLogin)}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex justify-end gap-0.5">
+                          {a.status === 'en-attente' ? (
+                            <IconButton label={`Valider ${a.name}`} onClick={() => setStatusOf([a.id], 'actif')}><Check className="h-4 w-4 text-green-600" /></IconButton>
+                          ) : a.status === 'actif' ? (
+                            <IconButton label={`Suspendre ${a.name}`} disabled={self} onClick={() => setStatusOf([a.id], 'suspendu')}><ShieldOff className="h-4 w-4" /></IconButton>
+                          ) : (
+                            <IconButton label={`Réactiver ${a.name}`} onClick={() => setStatusOf([a.id], 'actif')}><ShieldCheck className="h-4 w-4 text-green-600" /></IconButton>
+                          )}
+                          <IconButton label={`Réinitialiser le mot de passe de ${a.name}`} onClick={() => setConfirm({ kind: 'reset', ids: [a.id] })}><KeyRound className="h-4 w-4" /></IconButton>
+                          <IconButton label={`Modifier ${a.name}`} onClick={() => setEditing(a)}><Pencil className="h-4 w-4" /></IconButton>
+                          <IconButton label={`Supprimer ${a.name}`} disabled={self} onClick={() => setConfirm({ kind: 'delete', ids: [a.id] })}><Trash2 className="h-4 w-4 text-red-600" /></IconButton>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {rows.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-3 py-10 text-center text-sm text-muted">Aucun compte ne correspond à ces filtres.</td>
@@ -294,7 +298,6 @@ export default function Comptes() {
         <AccountForm
           account={editing === 'new' ? null : editing}
           promoOptions={promoOptions}
-          emailTaken={(email, id) => accounts.some((a) => a.email.toLowerCase() === email.toLowerCase() && a.id !== id)}
           onSave={save}
           onClose={() => setEditing(null)}
         />
@@ -313,23 +316,60 @@ export default function Comptes() {
       {confirm?.kind === 'reset' && (
         <ConfirmDialog
           title="Réinitialiser le mot de passe"
-          message={<>Un e-mail avec un lien de réinitialisation sera envoyé à <strong className="text-navy">{describe(confirm.ids)}</strong>. L’ancien mot de passe ne fonctionnera plus.</>}
-          confirmLabel="Envoyer le lien"
+          message={<>Un mot de passe provisoire sera généré pour <strong className="text-navy">{describe(confirm.ids)}</strong> et affiché une seule fois : transmets-le à la personne. L’ancien mot de passe ne fonctionnera plus.</>}
+          confirmLabel="Générer le mot de passe"
           onConfirm={() => resetPassword(confirm.ids)}
           onClose={() => setConfirm(null)}
         />
       )}
+      {credentials && <CredentialsDialog credentials={credentials} onClose={() => setCredentials(null)} />}
 
       {toast.node}
     </div>
   );
 }
 
-function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+function IconButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} aria-label={label} title={label} className="rounded p-1.5 text-navy hover:bg-panel">
+    <button onClick={onClick} disabled={disabled} aria-label={label} title={disabled ? 'Impossible sur ton propre compte' : label} className="rounded p-1.5 text-navy hover:bg-panel disabled:cursor-not-allowed disabled:opacity-30">
       {children}
     </button>
+  );
+}
+
+/** Mots de passe provisoires, montrés une seule fois (création d'un compte ou réinitialisation). */
+function CredentialsDialog({ credentials, onClose }: { credentials: Credential[]; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const text = credentials.map((c) => `${c.name} (${c.email}) : ${c.temporaryPassword}`).join('\n');
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      /* presse-papiers indisponible : le texte reste sélectionnable */
+    }
+  };
+
+  return (
+    <Modal title="Mot de passe provisoire" onClose={onClose}>
+      <p className="text-sm text-muted">
+        Il ne sera plus affiché : transmets-le à {credentials.length > 1 ? 'chaque personne' : 'la personne'} (en main propre, par exemple).
+      </p>
+      <ul className="mt-3 space-y-2">
+        {credentials.map((c) => (
+          <li key={c.email} className="rounded-md bg-panel px-3 py-2">
+            <p className="text-sm font-semibold">{c.name}</p>
+            <p className="text-[11px] text-muted">{c.email}</p>
+            <p className="mt-1 select-all font-mono text-sm font-bold">{c.temporaryPassword}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-5 flex justify-end gap-2">
+        <button onClick={copy} className={buttonOutline}>{copied ? 'Copié' : 'Copier'}</button>
+        <button onClick={onClose} className={buttonPrimary}>J’ai noté le mot de passe</button>
+      </div>
+    </Modal>
   );
 }
 
@@ -351,7 +391,7 @@ function PendingCard({ accounts, onValidate }: { accounts: Account[]; onValidate
                 <Avatar initials={a.initials} size="h-8 w-8 text-xs" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{a.name}</p>
-                  <p className="text-[11px] text-muted">{a.promo} · créé le {a.createdAt}</p>
+                  <p className="text-[11px] text-muted">{a.promo} · créé le {formatDay(a.createdAt)}</p>
                 </div>
                 <button onClick={() => onValidate([a.id])} className="rounded border border-navy px-2 py-1 text-[11px] font-medium hover:bg-slate-50">Valider</button>
               </li>
@@ -371,41 +411,42 @@ function PendingCard({ accounts, onValidate }: { accounts: Account[]; onValidate
 function AccountForm({
   account,
   promoOptions,
-  emailTaken,
   onSave,
   onClose,
 }: {
   account: Account | null;
   promoOptions: string[];
-  emailTaken: (email: string, id?: number) => boolean;
-  onSave: (d: Draft) => void;
+  onSave: (d: AccountDraft) => Promise<string | null>;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(
+  const [draft, setDraft] = useState<AccountDraft>(
     account
       ? { name: account.name, email: account.email, role: account.role, status: account.status, promo: account.promo }
-      : { name: '', email: '', role: 'etudiant', status: 'en-attente', promo: promoOptions[0] ?? '' },
+      : { name: '', email: '', role: 'etudiant', status: 'en-attente', promo: promoOptions[0] ?? NO_GROUP },
   );
   const [emailTouched, setEmailTouched] = useState(Boolean(account));
-  const [errors, setErrors] = useState<Partial<Record<keyof Draft, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof AccountDraft | 'server', string>>>({});
+  const [busy, setBusy] = useState(false);
 
-  const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }));
+  const set = <K extends keyof AccountDraft>(k: K, v: AccountDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const err: typeof errors = {};
     if (draft.name.trim().split(/\s+/).length < 2) err.name = 'Indique le prénom et le nom.';
     if (!EMAIL_RE.test(draft.email)) err.email = 'Adresse e-mail invalide.';
-    else if (emailTaken(draft.email, account?.id)) err.email = 'Cette adresse est déjà utilisée par un autre compte.';
-    if (draft.role === 'etudiant' && !draft.promo) err.promo = 'Choisis une promotion.';
     setErrors(err);
     if (Object.keys(err).length) return;
-    onSave({
+
+    setBusy(true);
+    const server = await onSave({
       ...draft,
       name: draft.name.trim(),
       email: draft.email.trim(),
       promo: draft.role === 'admin' ? '—' : draft.promo.trim() || '—',
     });
+    setBusy(false);
+    if (server) setErrors({ server });
   };
 
   return (
@@ -445,7 +486,7 @@ function AccountForm({
                 setDraft((d) => ({
                   ...d,
                   role: r,
-                  promo: r === 'etudiant' ? (promoOptions.includes(d.promo) ? d.promo : promoOptions[0] ?? '') : r === 'enseignant' && (promoOptions.includes(d.promo) || d.promo === '—') ? '' : d.promo,
+                  promo: r === 'etudiant' ? (promoOptions.includes(d.promo) ? d.promo : promoOptions[0] ?? NO_GROUP) : r === 'enseignant' && (promoOptions.includes(d.promo) || d.promo === '—') ? '' : d.promo,
                 }));
               }}
             >
@@ -464,7 +505,7 @@ function AccountForm({
         </div>
 
         {draft.role === 'etudiant' && (
-          <Field label="Promotion et groupe" error={errors.promo}>
+          <Field label="Promotion et groupe">
             <select className={inputClass} value={draft.promo} onChange={(e) => set('promo', e.target.value)}>
               {promoOptions.map((p) => (
                 <option key={p}>{p}</option>
@@ -481,11 +522,12 @@ function AccountForm({
           <p className="rounded-md bg-brand-light px-3 py-2 text-xs">Un administrateur a accès à tous les comptes, contenus et au référentiel.</p>
         )}
 
-        {!account && <p className="text-xs text-muted">Un e-mail d’invitation sera envoyé pour définir le mot de passe.</p>}
+        {!account && <p className="text-xs text-muted">Un mot de passe provisoire sera généré à la création et affiché une seule fois.</p>}
+        {errors.server && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-800">{errors.server}</p>}
 
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className={buttonOutline}>Annuler</button>
-          <button type="submit" className={buttonPrimary}>{account ? 'Enregistrer' : 'Créer le compte'}</button>
+          <button type="submit" disabled={busy} className={buttonPrimary}>{account ? 'Enregistrer' : 'Créer le compte'}</button>
         </div>
       </form>
     </Modal>

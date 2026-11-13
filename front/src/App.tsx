@@ -29,7 +29,7 @@ export default function App() {
         <Route path="defis/:id" element={<DefiDetail />} />
         <Route path="classement" element={<Classement />} />
         <Route path="duels" element={<Duels />} />
-        <Route path="duels/en-direct" element={<DuelLive />} />
+        <Route path="duels/:id" element={<DuelLive />} />
         <Route path="profil" element={<Profil />} />
         <Route path="succes" element={<Succes />} />
       </Route>

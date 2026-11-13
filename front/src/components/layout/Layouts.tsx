@@ -1,23 +1,30 @@
+import type { ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { homeFor, useAuth } from '../../auth';
 import { AdminProvider } from '../../pages/admin/store';
 import { MeProvider, useMe } from '../../me';
-import { teacher } from '../../data/teacher';
 import Header, { studentNav, type NavItem } from '../Header';
 import { formatNumber } from '../ui';
 import Footer from './Footer';
+
+/** Cadre commun : en-tête, contenu de la page, pied de page. */
+function Shell({ header, children }: { header: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col">
+      {header}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+      <Footer />
+    </div>
+  );
+}
 
 /** En-tête de l'espace étudiant : affiche les points réels de l'étudiant connecté. */
 function StudentShell() {
   const { me } = useMe();
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header links={studentNav} chip={me ? `${formatNumber(me.points)} pts` : '… pts'} profilePath="/profil" />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-        <Outlet />
-      </main>
-      <Footer />
-    </div>
+    <Shell header={<Header links={studentNav} chip={me ? `${formatNumber(me.points)} pts` : '… pts'} profilePath="/profil" />}>
+      <Outlet />
+    </Shell>
   );
 }
 
@@ -41,6 +48,15 @@ const teacherNav: NavItem[] = [
   { label: 'Aide', to: '/enseignant/aide' },
 ];
 
+function TeacherShell() {
+  const { me } = useMe();
+  return (
+    <Shell header={<Header links={teacherNav} chip={me?.shortName ?? '…'} badge="Enseignant" home="/enseignant" />}>
+      <Outlet />
+    </Shell>
+  );
+}
+
 /** Espace enseignant : navigation dédiée, réservé au rôle enseignant. */
 export function TeacherLayout() {
   const { role } = useAuth();
@@ -48,13 +64,9 @@ export function TeacherLayout() {
   if (role !== 'enseignant') return <Navigate to={homeFor(role)} replace />;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header links={teacherNav} chip={teacher.shortName} badge="Enseignant" home="/enseignant" />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-        <Outlet />
-      </main>
-      <Footer />
-    </div>
+    <MeProvider>
+      <TeacherShell />
+    </MeProvider>
   );
 }
 
@@ -65,6 +77,17 @@ const adminNav: NavItem[] = [
   { label: 'Référentiel', to: '/admin/referentiel' },
 ];
 
+function AdminShell() {
+  const { me } = useMe();
+  return (
+    <Shell header={<Header links={adminNav} chip={me ? `${me.firstName} ${me.lastName}` : '…'} badge="Admin" home="/admin" />}>
+      <AdminProvider>
+        <Outlet />
+      </AdminProvider>
+    </Shell>
+  );
+}
+
 /** Espace administrateur : gestion des comptes, promotions, contenus et référentiel. */
 export function AdminLayout() {
   const { role } = useAuth();
@@ -72,14 +95,8 @@ export function AdminLayout() {
   if (role !== 'admin') return <Navigate to={homeFor(role)} replace />;
 
   return (
-    <AdminProvider>
-      <div className="flex min-h-screen flex-col">
-        <Header links={adminNav} chip="Service DSI" badge="Admin" home="/admin" />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-          <Outlet />
-        </main>
-        <Footer />
-      </div>
-    </AdminProvider>
+    <MeProvider>
+      <AdminShell />
+    </MeProvider>
   );
 }

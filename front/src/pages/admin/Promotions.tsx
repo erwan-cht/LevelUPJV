@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { Plus, Trash2, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { promoKey, type Promotion } from '../../data/admin';
+import { promoKey } from '../../format';
 import { Breadcrumb, PageTitle, buttonBrand, buttonOutline, buttonPrimary, inputClass } from '../../components/ui';
-import { useAdmin } from './store';
+import { useAdmin, type Promotion } from './store';
 import { ConfirmDialog, Field, Modal, StatCard, useToast } from './ui';
 
 export default function Promotions() {
-  const { promotions, setPromotions, accounts, setAccounts, log } = useAdmin();
+  const { promotions, accounts, createPromotion, addGroup, setReferent, deleteGroup, deletePromotion } = useAdmin();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
   const [toDelete, setToDelete] = useState<{ promo: Promotion; group?: string } | null>(null);
@@ -19,44 +19,20 @@ export default function Promotions() {
     (a) => a.role === 'etudiant' && !promotions.some((p) => p.groups.some((g) => promoKey(p.name, g) === a.promo)),
   ).length;
 
-  const addGroup = (p: Promotion) => {
-    let i = 1;
-    while (p.groups.includes(`Groupe ${i}`)) i++;
-    const name = `Groupe ${i}`;
-    setPromotions((list) => list.map((x) => (x.id === p.id ? { ...x, groups: [...x.groups, name] } : x)));
-    log(`${name} ajouté à ${p.name}`);
-    toast.show(`${name} ajouté à ${p.name}`);
-  };
-
-  const setReferent = (p: Promotion, referent: string) => {
-    setPromotions((list) => list.map((x) => (x.id === p.id ? { ...x, referent } : x)));
-    log(`Référent de ${p.name} : ${referent}`);
-  };
-
-  /** Les étudiants d'un groupe ou d'une promo supprimés passent « sans groupe ». */
-  const unassign = (keys: string[]) =>
-    setAccounts((list) => list.map((a) => (a.role === 'etudiant' && keys.includes(a.promo) ? { ...a, promo: 'Sans groupe' } : a)));
-
-  const remove = ({ promo, group }: { promo: Promotion; group?: string }) => {
-    if (group) {
-      unassign([promoKey(promo.name, group)]);
-      setPromotions((list) => list.map((x) => (x.id === promo.id ? { ...x, groups: x.groups.filter((g) => g !== group) } : x)));
-      log(`${group} supprimé de ${promo.name}`);
-      toast.show(`${group} supprimé`);
-    } else {
-      unassign(promo.groups.map((g) => promoKey(promo.name, g)));
-      setPromotions((list) => list.filter((x) => x.id !== promo.id));
-      log(`Promotion ${promo.name} supprimée`);
-      toast.show(`${promo.name} supprimée`);
+  /** Exécute une action de l'API et annonce le résultat (ou l'erreur renvoyée par le serveur). */
+  const run = async (action: () => Promise<void>, done: string) => {
+    try {
+      await action();
+      toast.show(done);
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Action impossible.');
     }
   };
 
-  const create = (p: Omit<Promotion, 'id'>) => {
-    setPromotions((list) => [...list, { ...p, id: Math.max(0, ...list.map((x) => x.id)) + 1 }]);
-    log(`Promotion ${p.name} créée (${p.groups.length} groupes)`);
-    toast.show(`${p.name} créée`);
-    setCreating(false);
-  };
+  const remove = ({ promo, group }: { promo: Promotion; group?: string }) =>
+    group
+      ? run(() => deleteGroup(promo.id, group), `${group} supprimé`)
+      : run(() => deletePromotion(promo.id), `${promo.name} supprimée`);
 
   const pendingCount = toDelete
     ? toDelete.group
@@ -96,7 +72,11 @@ export default function Promotions() {
             <div className="flex-1 space-y-3 p-4">
               <label className="block text-xs font-medium">
                 Enseignant référent
-                <select className={`${inputClass} mt-1`} value={p.referent} onChange={(e) => setReferent(p, e.target.value)}>
+                <select
+                  className={`${inputClass} mt-1`}
+                  value={p.referent}
+                  onChange={(e) => run(() => setReferent(p.id, e.target.value), `Référent de ${p.name} : ${e.target.value}`)}
+                >
                   {!teachers.includes(p.referent) && <option>{p.referent || '—'}</option>}
                   {teachers.map((t) => <option key={t}>{t}</option>)}
                 </select>
@@ -121,14 +101,30 @@ export default function Promotions() {
             </div>
 
             <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2.5 text-xs">
-              <button onClick={() => addGroup(p)} className="font-semibold text-brand hover:underline">+ Ajouter un groupe</button>
+              <button onClick={() => run(() => addGroup(p.id), `Groupe ajouté à ${p.name}`)} className="font-semibold text-brand hover:underline">+ Ajouter un groupe</button>
               <Link to="/admin" className="text-muted hover:text-navy">Voir les comptes →</Link>
             </div>
           </section>
         ))}
+        {promotions.length === 0 && <p className="rounded-lg bg-panel p-6 text-center text-sm text-muted md:col-span-2 lg:col-span-3">Aucune promotion pour le moment.</p>}
       </div>
 
-      {creating && <PromoForm teachers={teachers} existing={promotions.map((p) => p.name.toLowerCase())} onSave={create} onClose={() => setCreating(false)} />}
+      {creating && (
+        <PromoForm
+          teachers={teachers}
+          onSave={async (p) => {
+            try {
+              await createPromotion(p);
+              toast.show(`${p.name} créée`);
+              setCreating(false);
+              return null;
+            } catch (e) {
+              return e instanceof Error ? e.message : 'Création impossible.';
+            }
+          }}
+          onClose={() => setCreating(false)}
+        />
+      )}
 
       {toDelete && (
         <ConfirmDialog
@@ -152,13 +148,11 @@ export default function Promotions() {
 
 function PromoForm({
   teachers,
-  existing,
   onSave,
   onClose,
 }: {
   teachers: string[];
-  existing: string[];
-  onSave: (p: Omit<Promotion, 'id'>) => void;
+  onSave: (p: { name: string; year: string; groups: number; referent: string }) => Promise<string | null>;
   onClose: () => void;
 }) {
   const [name, setName] = useState('');
@@ -166,13 +160,16 @@ function PromoForm({
   const [groups, setGroups] = useState(3);
   const [referent, setReferent] = useState(teachers[0] ?? '');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const n = name.trim();
     if (!n) return setError('Donne un nom à la promotion.');
-    if (existing.includes(n.toLowerCase())) return setError('Une promotion porte déjà ce nom.');
-    onSave({ name: n, year, referent, groups: Array.from({ length: groups }, (_, i) => `Groupe ${i + 1}`) });
+    setBusy(true);
+    const server = await onSave({ name: n, year, groups, referent });
+    setBusy(false);
+    if (server) setError(server);
   };
 
   return (
@@ -198,7 +195,7 @@ function PromoForm({
         </Field>
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className={buttonOutline}>Annuler</button>
-          <button type="submit" className={buttonPrimary}>Créer</button>
+          <button type="submit" disabled={busy} className={buttonPrimary}>Créer</button>
         </div>
       </form>
     </Modal>

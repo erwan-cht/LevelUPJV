@@ -1,29 +1,66 @@
 import { useState } from 'react';
 import { Check, Pencil, Star, User as UserIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { competenceSkills, fullHistory, heatmap, profileBadges, recentSuccess, subjectProgress } from '../data/community';
-import { subjectStyles } from '../data/catalog';
+import { api, useApi } from '../api';
+import PageState from '../components/PageState';
+import { formatLongDate } from '../format';
 import { useMe } from '../me';
+import { subjectStyles } from '../subjects';
+import type { ApiUser, Competence, HistoryEntry } from '../types';
 import { Breadcrumb, Card, CardTitle, ProgressBar, Toggle, buttonOutline, formatNumber } from '../components/ui';
 
 type Tab = 'apercu' | 'badges' | 'historique' | 'competences';
+type Settings = { showInRanking: boolean; acceptDuels: boolean; dailyReminder: boolean };
+
+interface ProfileData {
+  user: ApiUser;
+  info: { promotion: string; group: string | null; league: string; ent: string; memberSince: string };
+  stats: { solved: number; totalChallenges: number; badgesEarned: number; badgesTotal: number; bestStreak: number };
+  heatmap: { weeks: number[][]; activeDays: number; totalDays: number; points: number };
+  subjectProgress: { subject: keyof typeof subjectStyles; done: number; total: number }[];
+  recent: HistoryEntry[];
+  history: HistoryEntry[];
+  badges: { name: string; earned: boolean }[];
+  competences: Competence[];
+  settings: Settings;
+}
 
 const heatColors = ['bg-slate-200', 'bg-amber-200', 'bg-amber-400', 'bg-brand', 'bg-amber-700'];
 
 export default function Profil() {
-  const { me } = useMe();
+  const { data, setData, loading, error, reload } = useApi<ProfileData>('/profile');
+  return (
+    <PageState loading={loading && !data} error={data ? null : error} onRetry={reload}>
+      {data && <ProfilContent data={data} setSettings={(settings) => setData({ ...data, settings })} />}
+    </PageState>
+  );
+}
+
+function ProfilContent({ data, setSettings }: { data: ProfileData; setSettings: (s: Settings) => void }) {
+  const { refreshMe } = useMe();
   const [tab, setTab] = useState<Tab>('apercu');
-  const [showInRanking, setShowInRanking] = useState(true);
-  const [duelInvites, setDuelInvites] = useState(true);
-  const [reminder, setReminder] = useState(false);
-  const earned = profileBadges.filter((b) => b.earned).length;
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const { user, info, stats, heatmap, settings } = data;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'apercu', label: 'Aperçu' },
-    { id: 'badges', label: `Badges ${earned}/${profileBadges.length}` },
+    { id: 'badges', label: `Badges ${stats.badgesEarned}/${stats.badgesTotal}` },
     { id: 'historique', label: 'Historique' },
     { id: 'competences', label: 'Compétences BUT' },
   ];
+
+  /** Enregistre une préférence ; en cas d'échec, l'ancienne valeur est rétablie. */
+  const change = async (key: keyof Settings, value: boolean) => {
+    setSaveError(null);
+    setSettings({ ...settings, [key]: value });
+    try {
+      setSettings(await api<Settings>('/me/settings', { method: 'PATCH', body: { [key]: value } }));
+      refreshMe();
+    } catch (e) {
+      setSettings(settings);
+      setSaveError(e instanceof Error ? e.message : 'Impossible d’enregistrer la préférence.');
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -34,34 +71,36 @@ export default function Profil() {
           <span className="flex h-24 w-24 items-center justify-center rounded-full bg-white/15">
             <UserIcon className="h-12 w-12" />
           </span>
-          <button aria-label="Modifier l’avatar" className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-white text-navy">
+          <button aria-label="Modifier l’avatar" disabled title="Bientôt disponible" className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-white text-navy disabled:opacity-70">
             <Pencil className="h-3.5 w-3.5" />
           </button>
         </div>
 
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{me ? `${me.firstName} ${me.lastName}` : '…'}</h1>
-          <p className="text-xs text-slate-300">{me?.group ?? me?.formation ?? ''} · Membre depuis septembre 2025</p>
+          <h1 className="text-2xl font-bold">{user.firstName} {user.lastName}</h1>
+          <p className="text-xs text-slate-300">
+            {user.group ?? user.formation} · Membre depuis {formatLongDate(info.memberSince)}
+          </p>
           <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
-            <span className="rounded bg-brand px-2 py-1">{me?.league ?? 'Ligue'}</span>
-            <span className="rounded bg-white/15 px-2 py-1">Rang #{me?.promoRank ?? '–'} de la promo</span>
-            <span className="rounded bg-white/15 px-2 py-1">Série : {me?.streakDays ?? 0} jour(s)</span>
+            <span className="rounded bg-brand px-2 py-1">{user.league}</span>
+            <span className="rounded bg-white/15 px-2 py-1">Rang #{user.promoRank} de la promo</span>
+            <span className="rounded bg-white/15 px-2 py-1">Série : {user.streakDays} jour{user.streakDays > 1 ? 's' : ''}</span>
           </div>
           <div className="mt-3">
             <div className="flex justify-between text-xs">
-              <span className="font-semibold text-brand">Niveau {me?.level ?? 1}</span>
-              <span>{formatNumber(me?.xp ?? 0)} / {formatNumber(me?.xpNextLevel ?? 0)} XP</span>
+              <span className="font-semibold text-brand">Niveau {user.level}</span>
+              <span>{formatNumber(user.xp)} / {formatNumber(user.xpNextLevel)} XP</span>
             </div>
-            <ProgressBar value={me?.xp ?? 0} max={me?.xpNextLevel ?? 1} color="bg-brand" track="bg-white/20" height="h-2" />
+            <ProgressBar value={user.xp} max={user.xpNextLevel} color="bg-brand" track="bg-white/20" height="h-2" />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           {[
-            ['Points', formatNumber(me?.points ?? 0), 'cette saison'],
-            ['Défis réussis', '43', 'sur 120'],
-            ['Badges', '4 / 12', 'débloqués'],
-            ['Record de série', '12 j', 'meilleure série'],
+            ['Points', formatNumber(user.points), 'cette saison'],
+            ['Défis réussis', String(stats.solved), `sur ${stats.totalChallenges}`],
+            ['Badges', `${stats.badgesEarned} / ${stats.badgesTotal}`, 'débloqués'],
+            ['Record de série', `${stats.bestStreak} j`, 'meilleure série'],
           ].map(([label, value, sub]) => (
             <div key={label} className="rounded-md bg-white/10 px-4 py-2">
               <p className="text-[10px] uppercase tracking-wide text-slate-300">{label}</p>
@@ -72,14 +111,14 @@ export default function Profil() {
         </div>
       </section>
 
-      <div role="tablist" className="flex gap-1 border-b border-slate-200 text-sm">
+      <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200 text-sm">
         {tabs.map((t) => (
           <button
             key={t.id}
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`-mb-px border-b-2 px-4 py-2 font-medium transition-colors ${tab === t.id ? 'border-brand' : 'border-transparent text-muted hover:text-navy'}`}
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2 font-medium transition-colors ${tab === t.id ? 'border-brand' : 'border-transparent text-muted hover:text-navy'}`}
           >
             {t.label}
           </button>
@@ -95,10 +134,10 @@ export default function Profil() {
                 <span className="text-xs text-muted">12 dernières semaines</span>
               </div>
               <div className="mt-4 grid grid-flow-col grid-rows-7 gap-1.5" role="img" aria-label="Carte de chaleur de l’activité">
-                {heatmap.flatMap((week, w) => week.map((level, d) => <span key={`${w}-${d}`} className={`h-5 rounded-sm ${heatColors[level]}`} />))}
+                {heatmap.weeks.flatMap((week, w) => week.map((level, d) => <span key={`${w}-${d}`} className={`h-5 rounded-sm ${heatColors[level]}`} />))}
               </div>
-              <div className="mt-3 flex items-center justify-between text-xs text-muted">
-                <span><strong className="text-navy">47 jours actifs</strong> sur 84 · 2 950 pts</span>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                <span><strong className="text-navy">{heatmap.activeDays} jour{heatmap.activeDays > 1 ? 's' : ''} actif{heatmap.activeDays > 1 ? 's' : ''}</strong> sur {heatmap.totalDays} · {formatNumber(heatmap.points)} pts</span>
                 <span className="flex items-center gap-1">Moins {heatColors.map((c) => <span key={c} className={`h-3 w-3 rounded-sm ${c}`} />)} Plus</span>
               </div>
             </Card>
@@ -109,7 +148,7 @@ export default function Profil() {
                 <span className="text-xs text-muted">défis réussis</span>
               </div>
               <ul className="mt-4 space-y-3">
-                {subjectProgress.map((p) => (
+                {data.subjectProgress.map((p) => (
                   <li key={p.subject} className="grid grid-cols-[150px_1fr_50px] items-center gap-3 text-xs">
                     <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${subjectStyles[p.subject].dot}`} />{p.subject}</span>
                     <ProgressBar value={p.done} max={p.total} color={subjectStyles[p.subject].bar} track="bg-white" height="h-2" />
@@ -124,7 +163,7 @@ export default function Profil() {
                 <CardTitle>Dernières réussites</CardTitle>
                 <button onClick={() => setTab('historique')} className={`${buttonOutline} px-3 py-1 text-xs`}>Tout l’historique</button>
               </div>
-              <HistoryList items={recentSuccess} />
+              <HistoryList items={data.recent} />
             </Card>
           </div>
 
@@ -133,22 +172,23 @@ export default function Profil() {
               <CardTitle>Informations</CardTitle>
               <dl className="mt-3 space-y-2 text-xs">
                 {[
-                  ['Promotion', 'BUT 2 Informatique'],
-                  ['Groupe', 'Groupe 2'],
-                  ['Ligue', 'Argent'],
-                  ['Compte ENT', 'oscar.lescot'],
-                  ['Membre depuis', '15 septembre 2025'],
+                  ['Promotion', info.promotion],
+                  ['Groupe', info.group ?? '—'],
+                  ['Ligue', info.league],
+                  ['Compte ENT', info.ent],
+                  ['Membre depuis', formatLongDate(info.memberSince)],
                 ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between"><dt className="text-muted">{k}</dt><dd className="font-semibold">{v}</dd></div>
+                  <div key={k} className="flex justify-between gap-3"><dt className="text-muted">{k}</dt><dd className="text-right font-semibold">{v}</dd></div>
                 ))}
               </dl>
             </Card>
             <Card>
               <CardTitle>Confidentialité et rappels</CardTitle>
+              {saveError && <p role="alert" className="mt-2 rounded bg-red-50 px-3 py-2 text-xs text-red-800">{saveError}</p>}
               <ul className="mt-3 space-y-2">
-                <Setting label="Apparaître dans le classement" text="Les autres étudiants voient ton nom et tes points." checked={showInRanking} onChange={setShowInRanking} />
-                <Setting label="Invitations à un duel" text="Autoriser les camarades à te défier." checked={duelInvites} onChange={setDuelInvites} />
-                <Setting label="Rappel quotidien" text="Un message pour protéger ta série." checked={reminder} onChange={setReminder} />
+                <Setting label="Apparaître dans le classement" text="Les autres étudiants voient ton nom et tes points." checked={settings.showInRanking} onChange={(v) => change('showInRanking', v)} />
+                <Setting label="Invitations à un duel" text="Autoriser les camarades à te défier." checked={settings.acceptDuels} onChange={(v) => change('acceptDuels', v)} />
+                <Setting label="Rappel quotidien" text="Préférence enregistrée ; l’envoi des rappels n’est pas encore actif." checked={settings.dailyReminder} onChange={(v) => change('dailyReminder', v)} />
               </ul>
             </Card>
           </aside>
@@ -162,7 +202,7 @@ export default function Profil() {
             <Link to="/succes" className="text-xs font-semibold text-brand hover:underline">Voir tous les succès →</Link>
           </div>
           <ul className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-6">
-            {profileBadges.map((b) => (
+            {data.badges.map((b) => (
               <li key={b.name} className="flex flex-col items-center gap-2 text-center text-xs">
                 <span className={`flex h-14 w-14 items-center justify-center rounded-full ${b.earned ? 'bg-navy text-white' : 'bg-slate-200 text-slate-400'}`}>
                   <Star className="h-6 w-6" fill="currentColor" />
@@ -177,7 +217,7 @@ export default function Profil() {
       {tab === 'historique' && (
         <Card>
           <CardTitle>Historique des défis réussis</CardTitle>
-          <HistoryList items={fullHistory} />
+          <HistoryList items={data.history} />
         </Card>
       )}
 
@@ -186,9 +226,9 @@ export default function Profil() {
           <CardTitle>Compétences du référentiel BUT</CardTitle>
           <p className="text-xs text-muted">Chaque défi réussi alimente ces compétences, et donc ton portfolio.</p>
           <ul className="mt-4 grid gap-4 md:grid-cols-2">
-            {competenceSkills.map((c) => (
+            {data.competences.map((c) => (
               <li key={c.name} className="rounded-md bg-white p-3">
-                <div className="flex justify-between text-sm"><span className="font-semibold">{c.name}</span><span className="font-semibold">{c.value} %</span></div>
+                <div className="flex justify-between gap-3 text-sm"><span className="font-semibold">{c.name}</span><span className="font-semibold">{c.value} %</span></div>
                 <p className="mb-2 text-xs text-muted">{c.description}</p>
                 <ProgressBar value={c.value} max={100} height="h-2" track="bg-slate-200" />
               </li>
@@ -200,7 +240,8 @@ export default function Profil() {
   );
 }
 
-function HistoryList({ items }: { items: typeof recentSuccess }) {
+function HistoryList({ items }: { items: HistoryEntry[] }) {
+  if (items.length === 0) return <p className="mt-3 text-sm text-muted">Aucun défi réussi pour le moment.</p>;
   return (
     <ul className="mt-3 space-y-2">
       {items.map((h) => (

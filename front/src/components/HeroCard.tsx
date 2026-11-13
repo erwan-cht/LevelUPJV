@@ -1,6 +1,7 @@
 import { Play, User as UserIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { User } from '../types';
+import { rankTrend } from '../format';
 import { ProgressBar, formatNumber } from './ui';
 
 export default function HeroCard({ user, resumeTitle, resumeId }: { user: User; resumeTitle: string; resumeId?: number }) {
@@ -54,7 +55,7 @@ export default function HeroCard({ user, resumeTitle, resumeId }: { user: User; 
         {/* Statistiques */}
         <div className="flex gap-4 self-start md:self-auto">
           <Stat label="Points" value={formatNumber(user.points)} sub={`+${user.pointsToday} aujourd'hui`} />
-          <Stat label="Rang promo" value={`#${user.promoRank}`} sub={`▲ ${user.rankDelta} places`} />
+          <Stat label="Rang promo" value={`#${user.promoRank}`} sub={rankTrend(user.rankDelta)} />
         </div>
       </div>
     </section>

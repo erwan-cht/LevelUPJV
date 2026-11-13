@@ -14,7 +14,7 @@ export default function Badges({
   next,
 }: {
   badges: Badge[];
-  next: { name: string; progress: number; total: number; unit: string };
+  next: { name: string; progress: number; total: number; unit: string } | null;
 }) {
   return (
     <Card>
@@ -39,6 +39,7 @@ export default function Badges({
         ))}
       </ul>
 
+      {next && (
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md bg-white px-3 py-2 text-xs sm:flex-nowrap">
         <span className="shrink-0 font-semibold">Prochain badge</span>
         <ProgressBar value={next.progress} max={next.total} color="bg-brand" />
@@ -46,6 +47,7 @@ export default function Badges({
           {next.name} · {next.progress} / {next.total} {next.unit}
         </span>
       </div>
+      )}
     </Card>
   );
 }

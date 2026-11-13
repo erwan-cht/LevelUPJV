@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Eye, EyeOff, Search, Send } from 'lucide-react';
-import { catalog, subjectStyles, subjects } from '../../data/catalog';
+import { subjectStyles, subjects } from '../../subjects';
 import type { Subject } from '../../types';
 import { Breadcrumb, DifficultyDots, PageTitle, inputClass } from '../../components/ui';
 import { useAdmin, type ContentStatus } from './store';
@@ -13,7 +13,7 @@ const statusInfo: Record<ContentStatus, { label: string; style: string }> = {
 };
 
 export default function Contenus() {
-  const { contentStatus, setContentStatus, log } = useAdmin();
+  const { contents, setContentStatus } = useAdmin();
   const toast = useToast();
   const [query, setQuery] = useState('');
   const [subject, setSubject] = useState<'toutes' | Subject>('toutes');
@@ -21,21 +21,24 @@ export default function Contenus() {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return catalog.filter(
+    return contents.filter(
       (c) =>
         (!q || c.title.toLowerCase().includes(q)) &&
         (subject === 'toutes' || c.subject === subject) &&
-        (status === 'tous' || contentStatus[c.id] === status),
+        (status === 'tous' || c.status === status),
     );
-  }, [query, subject, status, contentStatus]);
+  }, [contents, query, subject, status]);
 
-  const count = (s: ContentStatus) => catalog.filter((c) => contentStatus[c.id] === s).length;
+  const count = (s: ContentStatus) => contents.filter((c) => c.status === s).length;
 
-  const change = (id: number, title: string, next: ContentStatus) => {
-    setContentStatus((m) => ({ ...m, [id]: next }));
+  const change = async (id: number, title: string, next: ContentStatus) => {
     const verb = next === 'publie' ? 'publié' : next === 'masque' ? 'masqué' : 'repassé en brouillon';
-    log(`Défi « ${title} » ${verb}`);
-    toast.show(`« ${title} » ${verb}`);
+    try {
+      await setContentStatus(id, next);
+      toast.show(`« ${title} » ${verb}`);
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Action impossible.');
+    }
   };
 
   return (
@@ -79,42 +82,39 @@ export default function Contenus() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((c) => {
-                  const st = contentStatus[c.id] ?? 'publie';
-                  return (
-                    <tr key={c.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2.5">
-                        <p className="font-semibold">{c.title}</p>
-                        <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase text-white ${subjectStyles[c.subject].bar}`}>{subjectStyles[c.subject].short}</span>
-                        <span className="ml-2 text-[11px] text-muted">{c.description}</span>
-                      </td>
-                      <td className="px-3 py-2.5"><DifficultyDots level={c.difficulty} /></td>
-                      <td className="px-3 py-2.5 text-xs font-semibold">{c.points}</td>
-                      <td className="px-3 py-2.5">
-                        <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${statusInfo[st].style}`}>{statusInfo[st].label}</span>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex justify-end gap-1 text-xs">
-                          {st !== 'publie' && (
-                            <button onClick={() => change(c.id, c.title, 'publie')} className="inline-flex items-center gap-1 rounded border border-navy px-2 py-1 font-medium hover:bg-slate-50">
-                              {st === 'masque' ? <Eye className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />} Publier
-                            </button>
-                          )}
-                          {st !== 'masque' && (
-                            <button onClick={() => change(c.id, c.title, 'masque')} className="inline-flex items-center gap-1 rounded border border-red-600 px-2 py-1 font-medium text-red-600 hover:bg-red-50">
-                              <EyeOff className="h-3.5 w-3.5" /> Masquer
-                            </button>
-                          )}
-                          {st === 'publie' && (
-                            <button onClick={() => change(c.id, c.title, 'brouillon')} className="rounded px-2 py-1 text-muted hover:bg-panel hover:text-navy">
-                              Brouillon
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {rows.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50">
+                    <td className="px-3 py-2.5">
+                      <p className="font-semibold">{c.title}</p>
+                      <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase text-white ${subjectStyles[c.subject].bar}`}>{subjectStyles[c.subject].short}</span>
+                      <span className="ml-2 text-[11px] text-muted">{c.description}</span>
+                    </td>
+                    <td className="px-3 py-2.5"><DifficultyDots level={c.difficulty} /></td>
+                    <td className="px-3 py-2.5 text-xs font-semibold">{c.points}</td>
+                    <td className="px-3 py-2.5">
+                      <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${statusInfo[c.status].style}`}>{statusInfo[c.status].label}</span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex justify-end gap-1 text-xs">
+                        {c.status !== 'publie' && (
+                          <button onClick={() => change(c.id, c.title, 'publie')} className="inline-flex items-center gap-1 rounded border border-navy px-2 py-1 font-medium hover:bg-slate-50">
+                            {c.status === 'masque' ? <Eye className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />} Publier
+                          </button>
+                        )}
+                        {c.status !== 'masque' && (
+                          <button onClick={() => change(c.id, c.title, 'masque')} className="inline-flex items-center gap-1 rounded border border-red-600 px-2 py-1 font-medium text-red-600 hover:bg-red-50">
+                            <EyeOff className="h-3.5 w-3.5" /> Masquer
+                          </button>
+                        )}
+                        {c.status === 'publie' && (
+                          <button onClick={() => change(c.id, c.title, 'brouillon')} className="rounded px-2 py-1 text-muted hover:bg-panel hover:text-navy">
+                            Brouillon
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
                 {rows.length === 0 && (
                   <tr><td colSpan={5} className="px-3 py-10 text-center text-muted">Aucun défi ne correspond à ces filtres.</td></tr>
                 )}

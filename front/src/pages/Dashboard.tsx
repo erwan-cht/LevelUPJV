@@ -7,8 +7,7 @@ import DailyObjectives from '../components/DailyObjectives';
 import DuelBanner from '../components/DuelBanner';
 import PageState from '../components/PageState';
 import { useApi } from '../api';
-import { subjectStyles } from '../data/catalog';
-import { onlinePlayers } from '../data/mock';
+import { subjectStyles } from '../subjects';
 import type {
   ActivityDay,
   ApiChallenge,
@@ -27,10 +26,11 @@ interface DashboardData {
   groupRanking: (RankingEntry & { name: string })[];
   activity: ActivityDay[];
   badges: Badge[];
-  nextBadge: { name: string; progress: number; total: number; unit: string };
+  nextBadge: { name: string; progress: number; total: number; unit: string } | null;
   dailyObjectives: DailyObjective[];
   streak: StreakDay[];
   streakDays: number;
+  online: { count: number; players: { initials: string; color: string }[] };
 }
 
 /** Les défis de l'API deviennent les lignes « Mes défis » du tableau de bord. */
@@ -85,7 +85,7 @@ function DashboardContent({ data }: { data: DashboardData }) {
         </aside>
       </div>
 
-      <DuelBanner players={onlinePlayers} />
+      <DuelBanner players={data.online.players} count={data.online.count} />
     </div>
   );
 }

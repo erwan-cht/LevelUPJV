@@ -1,6 +1,8 @@
 export type Difficulty = 'Facile' | 'Moyen' | 'Difficile';
 export type ChallengeStatus = 'en-cours' | 'recommande' | 'termine';
+export type Subject = 'Bases de données' | 'Algorithmique' | 'Développement web' | 'Réseaux & systèmes';
 
+// ---------- Tableau de bord ----------
 export interface User {
   firstName: string;
   initials: string;
@@ -59,8 +61,6 @@ export interface StreakDay {
 }
 
 // ---------- Catalogue de défis ----------
-export type Subject = 'Bases de données' | 'Algorithmique' | 'Développement web' | 'Réseaux & systèmes';
-
 export interface CatalogChallenge {
   id: number;
   title: string;
@@ -75,6 +75,7 @@ export interface CatalogChallenge {
   testsPassed?: number;
   recommended?: boolean;
   favorite?: boolean;
+  competence?: string | null;
 }
 
 // ---------- Classement ----------
@@ -90,51 +91,13 @@ export interface Student {
   isMe?: boolean;
 }
 
-// ---------- Duels ----------
-export interface Opponent {
-  name: string;
-  initials: string;
-  level: number;
-  league: string;
-  status: 'dispo' | 'en-duel';
-}
-
-export interface DuelTest {
-  label: string;
-  expected: string;
-  passed: boolean;
-}
-
 // ---------- Profil ----------
-export interface Achievement {
-  id: number;
-  name: string;
-  description: string;
-  points: number;
-  claimed: boolean;
-}
-
 export interface HistoryEntry {
   title: string;
   subject: Subject;
   date: string;
   duration: string;
   points: number;
-}
-
-// ---------- Enseignant ----------
-export interface Notion {
-  title: string;
-  subject: Subject;
-  successRate: number;
-  attempts: number;
-}
-
-export interface StudentToHelp {
-  name: string;
-  initials: string;
-  info: string;
-  tag: 'inactif' | 'bloqué' | 'à suivre';
 }
 
 export interface Competence {
@@ -146,10 +109,13 @@ export interface Competence {
 // ---------- Réponses de l'API ----------
 export interface ApiUser extends User {
   id: number;
+  role: 'STUDENT' | 'TEACHER' | 'ADMIN';
   lastName: string;
+  shortName: string;
   email: string;
   group: string | null;
   streakDays: number;
+  memberSince: string;
 }
 
 export interface ApiChallenge extends CatalogChallenge {

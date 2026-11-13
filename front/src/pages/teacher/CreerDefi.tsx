@@ -1,14 +1,38 @@
 import { useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
-import { subjectCompetence, subjectStyles, subjects } from '../../data/catalog';
+import { api, useApi } from '../../api';
+import PageState from '../../components/PageState';
+import { subjectStyles, subjects } from '../../subjects';
 import type { Difficulty, Subject } from '../../types';
 import { Breadcrumb, PageTitle, ProgressBar, Segmented, Toggle, buttonBrand, buttonOutline, inputClass } from '../../components/ui';
 
 type Kind = 'sql' | 'tests';
 
+interface Options {
+  promotions: { id: number; name: string; groups: { id: number; name: string }[] }[];
+  competences: { id: number; name: string }[];
+  suggested: Record<Subject, number | null>;
+}
+
 const suggestedPoints: Record<Difficulty, number> = { Facile: 40, Moyen: 70, Difficile: 110 };
+const ATTEMPTS = ['3', '5', '10', 'Illimitées'] as const;
+
+/** Modèle de jeu de données proposé à l'enseignant (il le remplace par le sien). */
+const EXAMPLE_SETUP = `CREATE TABLE clients (id INTEGER PRIMARY KEY, nom TEXT, ville TEXT);
+CREATE TABLE commandes (id INTEGER PRIMARY KEY, client_id INTEGER, montant REAL);
+INSERT INTO clients VALUES (1,'Alice','Amiens'),(2,'Bob','Paris'),(3,'Chloé','Amiens');
+INSERT INTO commandes VALUES (1,1,45.0),(2,1,20.0),(3,2,99.9);`;
 
 export default function CreerDefi() {
+  const { data, loading, error, reload } = useApi<Options>('/teacher/options');
+  return (
+    <PageState loading={loading} error={error} onRetry={reload}>
+      {data && <Form options={data} />}
+    </PageState>
+  );
+}
+
+function Form({ options }: { options: Options }) {
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState<Subject>('Bases de données');
   const [difficulty, setDifficulty] = useState<Difficulty>('Moyen');
@@ -17,32 +41,93 @@ export default function CreerDefi() {
   const [statement, setStatement] = useState('');
   const [constraint, setConstraint] = useState('');
   const [kind, setKind] = useState<Kind>('sql');
+  const [setupSql, setSetupSql] = useState('');
   const [reference, setReference] = useState('');
-  const [ignoreOrder, setIgnoreOrder] = useState(false);
+  const [orderMatters, setOrderMatters] = useState(false);
   const [variant, setVariant] = useState(true);
   const [similarity, setSimilarity] = useState(true);
   const [threshold, setThreshold] = useState(85);
+  const [maxTime, setMaxTime] = useState('5 s');
+  const [maxMemory, setMaxMemory] = useState('128 Mo');
+  const [attempts, setAttempts] = useState<(typeof ATTEMPTS)[number]>('5');
   const [hints, setHints] = useState(true);
   const [hintCount, setHintCount] = useState(3);
   const [hintAdvice, setHintAdvice] = useState('');
-  const [group, setGroup] = useState('BUT 2 · Groupe 2');
-  const [saved, setSaved] = useState('');
+  const [competenceChoice, setCompetenceChoice] = useState<number | null>(null);
+  const [targetChoice, setTargetChoice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // La compétence suit la matière, tant que l'enseignant n'en a pas choisi une autre.
+  const competenceId = competenceChoice ?? options.suggested[subject] ?? null;
+  const targets = options.promotions.flatMap((p) => [
+    { value: `p:${p.id}`, label: `Toute la promo ${p.name}` },
+    ...p.groups.map((g) => ({ value: `g:${g.id}`, label: `${p.name} · ${g.name}` })),
+  ]);
+  const target = targetChoice ?? targets[0]?.value ?? '';
 
   const checklist = useMemo(
     () => [
       { label: 'Titre renseigné', ok: title.trim().length > 0 },
       { label: 'Énoncé d’au moins 40 caractères', ok: statement.trim().length >= 40 },
-      { label: 'Compétence BUT choisie', ok: Boolean(subject) },
-      { label: 'Requête de référence', ok: reference.trim().length > 0 },
+      { label: 'Compétence BUT choisie', ok: competenceId !== null },
+      ...(kind === 'sql' ? [{ label: 'Jeu de données SQL', ok: setupSql.trim().length > 0 }] : []),
+      { label: kind === 'sql' ? 'Requête de référence' : 'Solution de référence', ok: reference.trim().length > 0 },
       { label: 'Points entre 10 et 200', ok: points >= 10 && points <= 200 },
     ],
-    [title, statement, subject, reference, points],
+    [title, statement, competenceId, kind, setupSql, reference, points],
   );
   const doneCount = checklist.filter((c) => c.ok).length;
   const ready = doneCount === checklist.length;
   const st = subjectStyles[subject];
-
   const steps = ['Informations', 'Énoncé', 'Correction', 'Anti-triche', 'Indices IA'];
+
+  const save = async (status: 'PUBLISHED' | 'DRAFT') => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await api<{ id: number; status: string; target: string | null }>('/teacher/challenges', {
+        body: {
+          title,
+          subject,
+          difficulty,
+          minutes,
+          points,
+          statement,
+          constraint,
+          kind,
+          setupSql,
+          reference,
+          competenceId,
+          status,
+          ...(target.startsWith('g:') ? { groupId: Number(target.slice(2)) } : target.startsWith('p:') ? { promoId: Number(target.slice(2)) } : {}),
+          settings: {
+            orderMatters,
+            maxAttempts: attempts === 'Illimitées' ? null : Number(attempts),
+            variant,
+            similarity,
+            threshold,
+            maxTime,
+            maxMemory,
+            hints: { enabled: hints, count: hintCount, advice: hintAdvice },
+          },
+        },
+      });
+      setResult({
+        ok: true,
+        text:
+          status === 'DRAFT'
+            ? `Brouillon « ${title} » enregistré.`
+            : res.target
+              ? `Défi « ${title} » publié et recommandé à ${res.target}.`
+              : `Défi « ${title} » publié dans le catalogue.`,
+      });
+    } catch (e) {
+      setResult({ ok: false, text: e instanceof Error ? e.message : 'Enregistrement impossible.' });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -63,12 +148,15 @@ export default function CreerDefi() {
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Matière">
-                <select className={inputClass} value={subject} onChange={(e) => setSubject(e.target.value as Subject)}>
+                <select className={inputClass} value={subject} onChange={(e) => { setSubject(e.target.value as Subject); setCompetenceChoice(null); }}>
                   {subjects.map((s) => <option key={s}>{s}</option>)}
                 </select>
               </Field>
               <Field label="Compétence BUT visée">
-                <input className={`${inputClass} bg-slate-50`} readOnly value={subjectCompetence[subject]} />
+                <select className={inputClass} value={competenceId ?? ''} onChange={(e) => setCompetenceChoice(e.target.value ? Number(e.target.value) : null)}>
+                  <option value="">Choisir…</option>
+                  {options.competences.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </Field>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -79,7 +167,7 @@ export default function CreerDefi() {
                 <input type="number" min={5} max={120} className={inputClass} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} />
               </Field>
               <Field label="Points" hint={`Suggestion selon la difficulté : ${suggestedPoints[difficulty]} pts`}>
-                <input type="number" min={0} max={300} className={inputClass} value={points} onChange={(e) => setPoints(Number(e.target.value))} />
+                <input type="number" min={10} max={200} className={inputClass} value={points} onChange={(e) => setPoints(Number(e.target.value))} />
               </Field>
             </div>
           </Section>
@@ -96,20 +184,27 @@ export default function CreerDefi() {
           <Section title="3. Correction automatique">
             <p className="text-xs font-medium">Type de correction</p>
             <div className="grid gap-3 sm:grid-cols-2">
-              {([['sql', 'Requête SQL', 'On compare le résultat obtenu au résultat attendu.'], ['tests', 'Code (tests)', 'On lance des tests dans un conteneur isolé.']] as [Kind, string, string][]).map(([id, name, text]) => (
+              {([['sql', 'Requête SQL', 'On compare le résultat obtenu au résultat attendu.'], ['tests', 'Code (tests)', 'Enregistré tel quel : la correction automatique du code n’est pas encore disponible.']] as [Kind, string, string][]).map(([id, name, text]) => (
                 <button key={id} type="button" aria-pressed={kind === id} onClick={() => setKind(id)} className={`rounded-md border-2 bg-white p-3 text-left ${kind === id ? 'border-navy' : 'border-slate-200 hover:border-slate-300'}`}>
                   <p className="text-sm font-semibold">{name}</p>
                   <p className="text-xs text-muted">{text}</p>
                 </button>
               ))}
             </div>
-            <Field label={kind === 'sql' ? 'Requête de référence' : 'Solution de référence'} hint="Le résultat de cette requête sert de réponse attendue.">
+            {kind === 'sql' && (
+              <Field label="Jeu de données (CREATE TABLE / INSERT)" hint="Le jeu de données est chargé dans une base jetable à chaque exécution. L’étudiant en voit les tables.">
+                <textarea className={`${inputClass} font-mono text-xs`} rows={6} value={setupSql} onChange={(e) => setSetupSql(e.target.value)} placeholder="CREATE TABLE …; INSERT INTO …;" />
+                <button type="button" onClick={() => setSetupSql(EXAMPLE_SETUP)} className="mt-1 text-[11px] font-semibold text-brand hover:underline">Utiliser un exemple (clients et commandes)</button>
+              </Field>
+            )}
+            <Field label={kind === 'sql' ? 'Requête de référence' : 'Solution de référence'} hint={kind === 'sql' ? 'Le résultat de cette requête sert de réponse attendue. Elle est testée sur le jeu de données à l’enregistrement.' : undefined}>
               <textarea className={`${inputClass} font-mono text-xs`} rows={4} value={reference} onChange={(e) => setReference(e.target.value)} placeholder={kind === 'sql' ? 'SELECT …' : 'def solution(...):'} />
             </Field>
-            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={ignoreOrder} onChange={(e) => setIgnoreOrder(e.target.checked)} /> L’ordre des lignes compte pour la correction</label>
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={orderMatters} onChange={(e) => setOrderMatters(e.target.checked)} /> L’ordre des lignes compte pour la correction</label>
           </Section>
 
           <Section title="4. Anti-triche et limites">
+            <p className="text-[11px] text-muted">Ces réglages sont enregistrés avec le défi. Pour l’instant, seuls « L’ordre des lignes » et « Tentatives max » sont appliqués à la correction.</p>
             <Row title="Générer une variante par étudiant" text="Les jeux de données et valeurs changent d’un étudiant à l’autre." checked={variant} onChange={setVariant} />
             <Row title="Détection de similarité" text="Signale les réponses trop proches entre étudiants." checked={similarity} onChange={setSimilarity} />
             {similarity && (
@@ -119,13 +214,14 @@ export default function CreerDefi() {
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Temps max par exécution"><select className={inputClass} defaultValue="5 s">{['2 s', '5 s', '10 s'].map((v) => <option key={v}>{v}</option>)}</select></Field>
-              <Field label="Mémoire max"><select className={inputClass} defaultValue="128 Mo">{['64 Mo', '128 Mo', '256 Mo'].map((v) => <option key={v}>{v}</option>)}</select></Field>
-              <Field label="Tentatives max"><select className={inputClass} defaultValue="5">{['3', '5', '10', 'Illimitées'].map((v) => <option key={v}>{v}</option>)}</select></Field>
+              <Field label="Temps max par exécution"><select className={inputClass} value={maxTime} onChange={(e) => setMaxTime(e.target.value)}>{['2 s', '5 s', '10 s'].map((v) => <option key={v}>{v}</option>)}</select></Field>
+              <Field label="Mémoire max"><select className={inputClass} value={maxMemory} onChange={(e) => setMaxMemory(e.target.value)}>{['64 Mo', '128 Mo', '256 Mo'].map((v) => <option key={v}>{v}</option>)}</select></Field>
+              <Field label="Tentatives max"><select className={inputClass} value={attempts} onChange={(e) => setAttempts(e.target.value as typeof attempts)}>{ATTEMPTS.map((v) => <option key={v}>{v}</option>)}</select></Field>
             </div>
           </Section>
 
           <Section title="5. Indices IA">
+            <p className="text-[11px] text-muted">Enregistré avec le défi ; les indices proposés aux étudiants sont pour l’instant des indices généraux.</p>
             <Row title="Autoriser les indices IA" text="Les indices progressifs que l’IA donne sans donner la réponse." checked={hints} onChange={setHints} />
             {hints && (
               <>
@@ -153,7 +249,7 @@ export default function CreerDefi() {
           </section>
 
           <section className="rounded-lg bg-panel p-4">
-            <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Avant de publier</h2><span className="text-[11px] text-muted">{doneCount}/{checklist.length} à compléter</span></div>
+            <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Avant de publier</h2><span className="text-[11px] text-muted">{doneCount}/{checklist.length} complétés</span></div>
             <div className="mt-2"><ProgressBar value={doneCount} max={checklist.length} color="bg-brand" track="bg-white" /></div>
             <ul className="mt-3 space-y-1.5 text-xs">
               {checklist.map((c) => (
@@ -164,16 +260,19 @@ export default function CreerDefi() {
               ))}
             </ul>
             <div className="mt-3">
-              <p className="mb-1 text-xs font-medium">Publier pour</p>
-              <select className={inputClass} value={group} onChange={(e) => setGroup(e.target.value)}>
-                {['BUT 2 · Groupe 1', 'BUT 2 · Groupe 2', 'BUT 2 · Groupe 3', 'Toute la promo BUT 2'].map((g) => <option key={g}>{g}</option>)}
+              <p className="mb-1 text-xs font-medium">Recommander à</p>
+              <select className={inputClass} value={target} onChange={(e) => setTargetChoice(e.target.value)}>
+                {targets.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                <option value="">Aucun groupe (catalogue seulement)</option>
               </select>
             </div>
             <div className="mt-3 space-y-2">
-              <button disabled={!ready} onClick={() => setSaved(`Défi « ${title} » publié pour ${group}.`)} className={`${buttonBrand} w-full`}>Publier le défi</button>
-              <button onClick={() => setSaved('Brouillon enregistré.')} className={`${buttonOutline} w-full`}>Enregistrer le brouillon</button>
+              <button disabled={!ready || busy} onClick={() => save('PUBLISHED')} className={`${buttonBrand} w-full`}>{busy ? 'Enregistrement…' : 'Publier le défi'}</button>
+              <button disabled={busy || !title.trim()} onClick={() => save('DRAFT')} className={`${buttonOutline} w-full`}>Enregistrer le brouillon</button>
             </div>
-            {saved && <p role="status" className="mt-3 rounded bg-green-100 px-3 py-2 text-xs text-green-800">{saved}</p>}
+            {result && (
+              <p role={result.ok ? 'status' : 'alert'} className={`mt-3 rounded px-3 py-2 text-xs ${result.ok ? 'bg-green-100 text-green-800' : 'bg-red-50 text-red-800'}`}>{result.text}</p>
+            )}
           </section>
         </aside>
       </div>

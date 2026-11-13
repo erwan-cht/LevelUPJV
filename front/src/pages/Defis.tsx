@@ -3,7 +3,7 @@ import { Clock, Database, FlaskConical, Network, Search, Star, Code2, Globe, Che
 import { Link } from 'react-router-dom';
 import { api, useApi } from '../api';
 import PageState from '../components/PageState';
-import { subjectCompetence, subjectStyles, subjects } from '../data/catalog';
+import { subjectStyles, subjects } from '../subjects';
 import type { ApiChallenge, CatalogChallenge, Difficulty, Subject } from '../types';
 import { Breadcrumb, DifficultyDots, PageTitle, ProgressBar, Segmented } from '../components/ui';
 
@@ -146,7 +146,7 @@ function DefisContent({ catalog }: { catalog: ApiChallenge[] }) {
               <h2 id={`sec-${st.short}`} className={`border-l-4 pl-3 text-lg font-semibold ${st.border}`}>
                 {s} <span className="text-xs font-normal text-muted">{items.length} défis</span>
               </h2>
-              <p className="text-xs italic text-muted">Compétence BUT : {subjectCompetence[s]}</p>
+              {items[0]?.competence && <p className="text-xs italic text-muted">Compétence BUT : {items[0].competence}</p>}
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((c) => (
