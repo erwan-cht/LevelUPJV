@@ -30,6 +30,8 @@ interface ChallengeDetail {
   /** null : tentatives illimitées. */
   maxAttempts: number | null;
   favorite: boolean;
+  /** Défi déjà réussi : les indices ne sont plus proposés. */
+  solved: boolean;
   hints: { level: number; cost: number; text: string | null }[];
 }
 
@@ -39,6 +41,8 @@ interface AttemptResponse {
   expected?: Table;
   obtained?: Table;
   pointsAwarded: number;
+  /** Coût des indices utilisés, déduit du gain à la première réussite. */
+  hintCost?: number;
 }
 
 type Outcome =
@@ -75,6 +79,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
   const [attempts, setAttempts] = useState(challenge.attempts);
   const [fav, setFav] = useState(challenge.favorite);
   const [hints, setHints] = useState(challenge.hints);
+  const [solved, setSolved] = useState(challenge.solved);
   const [seconds, setSeconds] = useState(0);
   const [problem, setProblem] = useState('');
 
@@ -104,6 +109,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
     try {
       const res = await api<AttemptResponse>(`/challenges/${challenge.id}/attempt`, { body: { answer: query } });
       setOutcome({ kind: 'attempt', ...res });
+      if (res.status === 'PASSED') setSolved(true); // les indices disparaissent dès la réussite
       setAttempts((a) => a + 1);
       refreshMe();
     } catch (e) {
@@ -262,7 +268,11 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
                   {outcome.status === 'PASSED' ? (
                     <p className="flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm text-green-800">
                       <CheckCircle2 className="h-4 w-4" /> {outcome.message}
-                      {outcome.pointsAwarded > 0 ? ` +${outcome.pointsAwarded} pts` : ' (points déjà obtenus)'}
+                      {outcome.pointsAwarded > 0
+                        ? ` +${outcome.pointsAwarded} pts${outcome.hintCost ? ` (${outcome.pointsAwarded + outcome.hintCost} − ${outcome.hintCost} d’indices)` : ''}`
+                        : outcome.hintCost
+                          ? ' (les indices ont consommé tout le gain)'
+                          : ' (points déjà obtenus)'}
                     </p>
                   ) : (
                     <Alert tone="red">{outcome.message}</Alert>
@@ -286,6 +296,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
         </div>
       </div>
 
+      {!solved && (
       <section className="overflow-hidden rounded-lg border border-navy bg-white">
         <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
           Indices · sans donner la réponse
@@ -305,7 +316,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
                       Indice {h.level}{!open && ' · verrouillé'}
                     </span>
                     <span className={open ? 'text-[10px] font-bold text-brand' : ''}>
-                      {h.cost === 0 ? 'GRATUIT' : `-${h.cost} pts`}
+                      {h.cost === 0 ? 'GRATUIT' : `-${h.cost} pts sur le gain`}
                     </span>
                   </p>
                   <p>{open ? h.text : 'Débloque cet indice pour le lire.'}</p>
@@ -316,11 +327,12 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
           {nextLocked && (
             <button onClick={() => unlock(nextLocked.level)} className={`${buttonOutline} mt-3`}>
               Débloquer l’indice {nextLocked.level}
-              {nextLocked.cost > 0 && ` (-${nextLocked.cost} pts)`}
+              {nextLocked.cost > 0 && ` (-${nextLocked.cost} pts sur le gain)`}
             </button>
           )}
         </div>
       </section>
+      )}
     </div>
   );
 }

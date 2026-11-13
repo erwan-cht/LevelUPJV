@@ -242,13 +242,15 @@ api.get('/challenges/:id', requireAuth('STUDENT'), async (req, res) => {
     return;
   }
 
-  const [attempts, hints, fav] = await Promise.all([
+  const [attempts, hints, fav, passedCount] = await Promise.all([
     prisma.attempt.count({ where: { userId, challengeId: c.id, duelId: null } }),
     prisma.hint.findMany({ where: { userId, challengeId: c.id } }),
     prisma.favorite.findUnique({ where: { userId_challengeId: { userId, challengeId: c.id } } }),
+    prisma.attempt.count({ where: { userId, challengeId: c.id, status: 'PASSED', duelId: null } }),
   ]);
   const unlocked = new Set(hints.map((h) => h.level));
   const settings = settingsOf(c);
+  const solved = passedCount > 0;
 
   res.json({
     id: c.id,
@@ -267,8 +269,10 @@ api.get('/challenges/:id', requireAuth('STUDENT'), async (req, res) => {
     // null : tentatives illimitées. Sans réglage de l'enseignant, la limite par défaut est de 5.
     maxAttempts: settings.maxAttempts === undefined ? 5 : settings.maxAttempts,
     favorite: Boolean(fav),
-    // Le texte d'un indice n'est envoyé que s'il a déjà été débloqué.
-    hints: HINTS.map((h) => ({ level: h.level, cost: h.cost, text: unlocked.has(h.level) ? h.text : null })),
+    solved,
+    // Une fois le défi réussi, les indices ne sont plus accessibles.
+    // Sinon, le texte d'un indice n'est envoyé que s'il a déjà été débloqué.
+    hints: solved ? [] : HINTS.map((h) => ({ level: h.level, cost: h.cost, text: unlocked.has(h.level) ? h.text : null })),
   });
 });
 
@@ -319,7 +323,10 @@ api.post('/challenges/:id/attempt', requireAuth('STUDENT'), async (req, res) => 
     return;
   }
 
-  const award = verdict.passed && already === 0 ? c.basePoints : 0;
+  // Les indices ne coûtent rien tant que le défi n'est pas réussi : leur coût est déduit du gain,
+  // une seule fois, au premier succès (jamais en dessous de zéro).
+  const hintCost = (await prisma.hint.aggregate({ where: { userId, challengeId: c.id }, _sum: { cost: true } }))._sum.cost ?? 0;
+  const award = verdict.passed && already === 0 ? Math.max(0, c.basePoints - hintCost) : 0;
 
   await prisma.$transaction(async (tx) => {
     await tx.attempt.create({
@@ -345,10 +352,14 @@ api.post('/challenges/:id/attempt', requireAuth('STUDENT'), async (req, res) => 
     testsPassed: verdict.testsPassed,
     testsTotal: verdict.testsTotal,
     pointsAwarded: award,
+    hintCost: verdict.passed && already === 0 ? hintCost : 0,
   });
 });
 
-/** Débloque un indice (le coût en points n'est prélevé qu'une fois par indice). */
+/**
+ * Débloque un indice. Aucun point n'est retiré maintenant : le coût (enregistré dans Hint.cost)
+ * sera déduit du gain quand l'étudiant réussira le défi.
+ */
 api.post('/challenges/:id/hints', requireAuth('STUDENT'), async (req, res) => {
   const id = ID(req.params.id);
   const userId = req.auth!.sub;
@@ -360,15 +371,17 @@ api.post('/challenges/:id/hints', requireAuth('STUDENT'), async (req, res) => {
     return;
   }
 
+  // Défi déjà réussi : plus d'indices, ni nouveaux ni déjà débloqués.
+  const solved = await prisma.attempt.count({ where: { userId, challengeId: c.id, status: 'PASSED', duelId: null } });
+  if (solved > 0) {
+    res.status(409).json({ error: 'Tu as déjà réussi ce défi : les indices ne sont plus disponibles.' });
+    return;
+  }
+
   const existing = await prisma.hint.findFirst({ where: { userId, challengeId: c.id, level } });
   if (!existing) {
-    await prisma.$transaction(async (tx) => {
-      await tx.hint.create({
-        data: { userId, challengeId: c.id, level, prompt: `indice ${level}`, response: hint.text, cost: hint.cost },
-      });
-      if (hint.cost > 0) {
-        await grantPoints(tx, userId, { points: -hint.cost, xp: 0, reason: `hint:${c.id}:${level}` });
-      }
+    await prisma.hint.create({
+      data: { userId, challengeId: c.id, level, prompt: `indice ${level}`, response: hint.text, cost: hint.cost },
     });
   }
   res.json({ level, cost: hint.cost, text: hint.text });

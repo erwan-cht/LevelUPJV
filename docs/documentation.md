@@ -150,7 +150,7 @@ Couleur par matière (`subjects.ts`, `subjectStyles`) : Bases de données en ble
 | **Connexion** | Onglets Étudiant / Enseignant, affichage du mot de passe, message d'erreur renvoyé par l'API (identifiants faux, compte suspendu ou en attente). Redirige selon le rôle. |
 | **Tableau de bord** | Bienvenue (niveau, XP, rang et son évolution sur 7 jours), « Mes défis » (onglets), activité sur 7 jours, badges et prochain badge, classement promo/groupe, objectifs du jour, camarades en ligne. |
 | **Défis** | Résumé par matière, recherche, filtres (niveau, statut), tri (recommandé, points, durée), favoris. « Recommandé » : défis proposés par un enseignant à ton groupe. |
-| **Page d'un défi** | Éditeur SQL, « Exécuter » et « Valider » (correction automatique sur le jeu de données du défi), tables disponibles, résultat attendu et obtenu, 3 indices débloquables (coût en points). |
+| **Page d'un défi** | Éditeur SQL, « Exécuter » et « Valider » (correction automatique sur le jeu de données du défi), tables disponibles, résultat attendu et obtenu, 3 indices débloquables (leur coût est déduit du gain quand le défi est réussi). |
 | **Classement** | Podium, tableau (recherche, promo/groupe), ligues (seuils fournis par l'API), évolution du rang, histogramme des points par semaine. |
 | **Duels** | Choix de la matière, du niveau et du type de duel, invitations reçues (accepter/refuser), camarades de la promo avec leur présence. Les duels portent sur les défis SQL. |
 | **Duel en direct** (`/duels/:id`) | Attente de l'adversaire, chrono de 10 minutes, éditeur SQL, « Exécuter » et « Soumettre », progression de l'adversaire, fil du duel, victoire, égalité ou abandon. La page relit l'état toutes les 2 secondes. |
@@ -242,6 +242,7 @@ Serveur Express (`server.ts`) qui lit et écrit dans PostgreSQL via Prisma. Tout
 
 **Règles de jeu :**
 - niveau = XP ÷ 200 + 1 ; ligue selon les points (Bronze, Argent dès 2 000, Or dès 3 000…) ; rang = position par points dans la promo, évolution = rang actuel contre rang d'il y a 7 jours.
+- un défi rapporte ses points une seule fois, à la première réussite, moins le coût des indices utilisés (jamais en dessous de 0). Débloquer un indice ne retire aucun point sur le moment.
 - un badge est gagné quand sa mesure atteint son seuil (défis réussis, série, duels gagnés, rang…) ; la récompense est créditée à la réclamation.
 - un duel dure 10 minutes ; le premier à obtenir le résultat attendu gagne 60 points (duel classé). Au bout du chrono, celui qui a le plus avancé l'emporte ; à égalité, personne ne gagne.
 
