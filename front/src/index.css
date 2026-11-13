@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --color-navy: #26314f;
+  --color-navy-light: #3a4767;
+  --color-brand: #ef8a0e;
+  --color-brand-light: #fdf0dc;
+  --color-page: #f5f6f8;
+  --color-panel: #ebeef3;
+  --color-muted: #6b7385;
+}
+
+body {
+  @apply bg-page text-navy antialiased;
+}
