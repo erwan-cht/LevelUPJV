@@ -1,10 +1,30 @@
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { requireAuth, signToken } from './auth.js';
+import { syncBadges } from './badges.js';
 import { prisma } from './db.js';
-import { difficultyLabel, roleLabel, startOfDay, subjectLabel } from './format.js';
+import {
+  LEAGUE_LIST,
+  difficultyLabel,
+  leagueOf,
+  metricUnit,
+  roleLabel,
+  startOfDay,
+  subjectLabel,
+} from './format.js';
+import { adminRouter } from './admin.js';
+import { duelsRouter } from './duels.js';
+import { profileRouter } from './profile.js';
 import { describeTables, judge, runQuery } from './sql.js';
-import { findUser, listChallenges, ranking, userSummary } from './services.js';
+import { teacherRouter } from './teacher.js';
+import {
+  findUser,
+  grantPoints,
+  listChallenges,
+  onlinePlayers,
+  ranking,
+  userSummary,
+} from './services.js';
 
 export const api = Router();
 
@@ -12,6 +32,13 @@ const ID = (v: unknown) => {
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : null;
 };
+
+/** Options choisies par l'enseignant à la création du défi (Challenge.settings). */
+interface ChallengeSettings {
+  maxAttempts?: number | null;
+  orderMatters?: boolean;
+}
+const settingsOf = (c: { settings: unknown }) => (c.settings ?? {}) as ChallengeSettings;
 
 // ───────────── Connexion ─────────────
 
@@ -32,7 +59,17 @@ api.post('/auth/login', async (req, res) => {
     res.status(401).json({ error: 'Identifiant ou mot de passe incorrect.' });
     return;
   }
+  // Le statut n'est révélé qu'après un mot de passe correct.
+  if (user.status === 'SUSPENDED') {
+    res.status(403).json({ error: 'Ton compte est suspendu. Contacte l’administrateur de la plateforme.' });
+    return;
+  }
+  if (user.status === 'PENDING') {
+    res.status(403).json({ error: 'Ton compte est en attente de validation par un administrateur.' });
+    return;
+  }
 
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date(), lastSeenAt: new Date() } });
   res.json({ token: signToken({ sub: user.id, role: user.role }), role: roleLabel[user.role] });
 });
 
@@ -57,21 +94,30 @@ api.get('/dashboard', requireAuth('STUDENT'), async (req, res) => {
     return;
   }
   const since = startOfDay(new Date(Date.now() - 6 * 86_400_000));
+  const todayStart = startOfDay();
+  const monday = new Date(todayStart.getTime() - ((new Date().getDay() + 6) % 7) * 86_400_000);
 
-  const [summary, challenges, promo, groupe, events, badges, owned, solved] = await Promise.all([
-    userSummary(user),
-    listChallenges(user.id),
-    ranking(user, 'promo'),
-    ranking(user, 'groupe'),
-    prisma.pointEvent.findMany({ where: { userId: user.id, createdAt: { gte: since }, points: { gt: 0 } } }),
-    prisma.badge.findMany({ orderBy: { id: 'asc' } }),
-    prisma.userBadge.findMany({ where: { userId: user.id } }),
-    prisma.attempt.findMany({
-      where: { userId: user.id, status: 'PASSED' },
-      distinct: ['challengeId'],
-      include: { challenge: { select: { subject: true } } },
-    }),
-  ]);
+  const [summary, challenges, promo, groupe, events, badgeStates, online, passedToday, duelsToday, weekEvents] =
+    await Promise.all([
+      userSummary(user),
+      listChallenges(user.id),
+      ranking(user, 'promo'),
+      ranking(user, 'groupe'),
+      prisma.pointEvent.findMany({ where: { userId: user.id, createdAt: { gte: since }, points: { gt: 0 } } }),
+      syncBadges(user.id),
+      onlinePlayers(user),
+      prisma.attempt.count({
+        where: { userId: user.id, status: 'PASSED', duelId: null, createdAt: { gte: todayStart } },
+      }),
+      prisma.duel.count({
+        where: {
+          status: 'FINISHED',
+          finishedAt: { gte: todayStart },
+          OR: [{ challengerId: user.id }, { opponentId: user.id }],
+        },
+      }),
+      prisma.pointEvent.findMany({ where: { userId: user.id, createdAt: { gte: monday } } }),
+    ]);
 
   // Activité des 7 derniers jours
   const activity = Array.from({ length: 7 }, (_, i) => {
@@ -90,32 +136,35 @@ api.get('/dashboard', requireAuth('STUDENT'), async (req, res) => {
     return [...keep].sort((a, b) => a - b).map((i) => list[i]);
   };
 
-  // Badges
-  const earned = new Set(owned.map((o) => o.badgeId));
-  const badgeList = badges.map((b) => ({
+  // Badges : les 6 plus récents gagnés, complétés par des badges à débloquer
+  const earned = badgeStates
+    .filter((b) => b.earned)
+    .sort((a, b) => (b.earnedAt?.getTime() ?? 0) - (a.earnedAt?.getTime() ?? 0));
+  const locked = badgeStates.filter((b) => !b.earned);
+  const badgeList = [...earned, ...locked].slice(0, 6).map((b) => ({
     name: b.name,
-    variant: earned.has(b.id) ? (b.variant === 'orange' ? 'orange' : 'navy') : 'locked',
+    variant: b.earned ? (b.variant === 'orange' ? 'orange' : 'navy') : 'locked',
   }));
-  const subjectsDone = new Set(solved.map((a) => a.challenge.subject)).size;
-  const nextBadge = { name: 'Full-stack', progress: subjectsDone, total: 3, unit: 'matières' };
+
+  // Prochain badge : le plus avancé parmi ceux qui restent à gagner
+  const closest = locked
+    .filter((b) => b.metric !== 'TOP_RANK')
+    .sort((a, b) => b.progress / b.threshold - a.progress / a.threshold)[0];
+  const nextBadge = closest
+    ? { name: closest.name, progress: closest.progress, total: closest.threshold, unit: metricUnit[closest.metric] ?? '' }
+    : null;
 
   // Objectifs et série de la semaine
-  const todayStart = startOfDay().getTime();
-  const passedToday = await prisma.attempt.count({
-    where: { userId: user.id, status: 'PASSED', createdAt: { gte: new Date(todayStart) } },
-  });
   const dailyObjectives = [
     { label: 'Réussir 1 défi', xp: 40, done: passedToday > 0 },
     { label: 'Gagner 50 points', xp: 30, done: summary.pointsToday >= 50 },
-    { label: 'Faire 1 duel', xp: 50, done: false },
+    { label: 'Faire 1 duel', xp: 50, done: duelsToday > 0 },
   ];
-  const monday = new Date(todayStart - ((new Date().getDay() + 6) % 7) * 86_400_000);
-  const weekEvents = await prisma.pointEvent.findMany({ where: { userId: user.id, createdAt: { gte: monday } } });
   const streak = WEEK.map((label, i) => {
     const d = monday.getTime() + i * 86_400_000;
     const active = weekEvents.some((e) => e.createdAt.getTime() >= d && e.createdAt.getTime() < d + 86_400_000);
-    const isToday = d === todayStart;
-    return { label, state: isToday ? 'today' : active && d < todayStart ? 'done' : 'todo' };
+    const isToday = d === todayStart.getTime();
+    return { label, state: isToday ? 'today' : active && d < todayStart.getTime() ? 'done' : 'todo' };
   });
 
   res.json({
@@ -129,6 +178,7 @@ api.get('/dashboard', requireAuth('STUDENT'), async (req, res) => {
     dailyObjectives,
     streak,
     streakDays: user.streakDays,
+    online,
   });
 });
 
@@ -157,7 +207,13 @@ api.get('/ranking', requireAuth('STUDENT'), async (req, res) => {
     return { label: `S${i + 1}`, points };
   });
 
-  res.json({ entries, weekly });
+  res.json({
+    entries,
+    weekly,
+    leagues: LEAGUE_LIST,
+    league: leagueOf(user.points),
+    scopeLabel: scope === 'groupe' ? (user.group?.name ?? 'Ton groupe') : (user.group?.promo ?? 'Ta promo'),
+  });
 });
 
 // ───────────── Défis ─────────────
@@ -177,7 +233,7 @@ api.get('/challenges/:id', requireAuth('STUDENT'), async (req, res) => {
   const userId = req.auth!.sub;
   const c = id
     ? await prisma.challenge.findFirst({
-        where: { id, published: true },
+        where: { id, status: 'PUBLISHED' },
         include: { competences: { include: { competence: true } } },
       })
     : null;
@@ -187,11 +243,12 @@ api.get('/challenges/:id', requireAuth('STUDENT'), async (req, res) => {
   }
 
   const [attempts, hints, fav] = await Promise.all([
-    prisma.attempt.count({ where: { userId, challengeId: c.id } }),
+    prisma.attempt.count({ where: { userId, challengeId: c.id, duelId: null } }),
     prisma.hint.findMany({ where: { userId, challengeId: c.id } }),
     prisma.favorite.findUnique({ where: { userId_challengeId: { userId, challengeId: c.id } } }),
   ]);
   const unlocked = new Set(hints.map((h) => h.level));
+  const settings = settingsOf(c);
 
   res.json({
     id: c.id,
@@ -207,7 +264,8 @@ api.get('/challenges/:id', requireAuth('STUDENT'), async (req, res) => {
     tables: c.setupSql ? describeTables(c.setupSql) : [],
     gradable: c.type === 'SQL' && Boolean(c.setupSql && c.solutionSql),
     attempts,
-    maxAttempts: 5,
+    // null : tentatives illimitées. Sans réglage de l'enseignant, la limite par défaut est de 5.
+    maxAttempts: settings.maxAttempts === undefined ? 5 : settings.maxAttempts,
     favorite: Boolean(fav),
     // Le texte d'un indice n'est envoyé que s'il a déjà été débloqué.
     hints: HINTS.map((h) => ({ level: h.level, cost: h.cost, text: unlocked.has(h.level) ? h.text : null })),
@@ -217,7 +275,7 @@ api.get('/challenges/:id', requireAuth('STUDENT'), async (req, res) => {
 /** Exécute la requête sans la corriger (bouton « Exécuter »). */
 api.post('/challenges/:id/run', requireAuth('STUDENT'), async (req, res) => {
   const id = ID(req.params.id);
-  const c = id ? await prisma.challenge.findFirst({ where: { id, published: true } }) : null;
+  const c = id ? await prisma.challenge.findFirst({ where: { id, status: 'PUBLISHED' } }) : null;
   if (!c?.setupSql) {
     res.status(400).json({ error: 'Ce défi ne s’exécute pas dans le navigateur.' });
     return;
@@ -231,7 +289,7 @@ api.post('/challenges/:id/attempt', requireAuth('STUDENT'), async (req, res) => 
   const id = ID(req.params.id);
   const userId = req.auth!.sub;
   const answer = String(req.body?.answer ?? '');
-  const c = id ? await prisma.challenge.findFirst({ where: { id, published: true } }) : null;
+  const c = id ? await prisma.challenge.findFirst({ where: { id, status: 'PUBLISHED' } }) : null;
   if (!c) {
     res.status(404).json({ error: 'Défi introuvable.' });
     return;
@@ -241,7 +299,18 @@ api.post('/challenges/:id/attempt', requireAuth('STUDENT'), async (req, res) => 
     return;
   }
 
-  const verdict = judge(c.setupSql, c.solutionSql, answer);
+  // Limite de tentatives, uniquement si l'enseignant en a fixé une.
+  const settings = settingsOf(c);
+  const [used, already] = await Promise.all([
+    prisma.attempt.count({ where: { userId, challengeId: c.id, duelId: null } }),
+    prisma.attempt.count({ where: { userId, challengeId: c.id, status: 'PASSED', duelId: null } }),
+  ]);
+  if (typeof settings.maxAttempts === 'number' && used >= settings.maxAttempts && already === 0) {
+    res.status(429).json({ error: `Tu as utilisé les ${settings.maxAttempts} tentatives autorisées pour ce défi.` });
+    return;
+  }
+
+  const verdict = judge(c.setupSql, c.solutionSql, answer, settings.orderMatters);
   if ('error' in verdict) {
     await prisma.attempt.create({
       data: { userId, challengeId: c.id, answer, status: 'ERROR', feedback: { error: verdict.error } },
@@ -250,7 +319,6 @@ api.post('/challenges/:id/attempt', requireAuth('STUDENT'), async (req, res) => 
     return;
   }
 
-  const already = await prisma.attempt.count({ where: { userId, challengeId: c.id, status: 'PASSED' } });
   const award = verdict.passed && already === 0 ? c.basePoints : 0;
 
   await prisma.$transaction(async (tx) => {
@@ -265,19 +333,9 @@ api.post('/challenges/:id/attempt', requireAuth('STUDENT'), async (req, res) => 
         feedback: JSON.parse(JSON.stringify({ expected: verdict.expected, obtained: verdict.obtained })),
       },
     });
-    if (award > 0) {
-      const u = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-      const today = startOfDay();
-      const yesterday = new Date(today.getTime() - 86_400_000);
-      const last = u.lastActiveDay ? startOfDay(u.lastActiveDay).getTime() : 0;
-      const streak = last === today.getTime() ? u.streakDays : last === yesterday.getTime() ? u.streakDays + 1 : 1;
-      await tx.pointEvent.create({ data: { userId, points: award, xp: award, reason: `challenge:${c.id}` } });
-      await tx.user.update({
-        where: { id: userId },
-        data: { points: { increment: award }, xp: { increment: award }, streakDays: streak, lastActiveDay: today },
-      });
-    }
+    if (award > 0) await grantPoints(tx, userId, { points: award, reason: `challenge:${c.id}`, activity: true });
   });
+  if (verdict.passed) await syncBadges(userId);
 
   res.json({
     status: verdict.passed ? 'PASSED' : 'FAILED',
@@ -296,7 +354,7 @@ api.post('/challenges/:id/hints', requireAuth('STUDENT'), async (req, res) => {
   const userId = req.auth!.sub;
   const level = Number(req.body?.level);
   const hint = HINTS.find((h) => h.level === level);
-  const c = id ? await prisma.challenge.findFirst({ where: { id, published: true } }) : null;
+  const c = id ? await prisma.challenge.findFirst({ where: { id, status: 'PUBLISHED' } }) : null;
   if (!c || !hint) {
     res.status(404).json({ error: 'Indice introuvable.' });
     return;
@@ -304,17 +362,14 @@ api.post('/challenges/:id/hints', requireAuth('STUDENT'), async (req, res) => {
 
   const existing = await prisma.hint.findFirst({ where: { userId, challengeId: c.id, level } });
   if (!existing) {
-    await prisma.$transaction([
-      prisma.hint.create({
+    await prisma.$transaction(async (tx) => {
+      await tx.hint.create({
         data: { userId, challengeId: c.id, level, prompt: `indice ${level}`, response: hint.text, cost: hint.cost },
-      }),
-      ...(hint.cost > 0
-        ? [
-            prisma.pointEvent.create({ data: { userId, points: -hint.cost, reason: `hint:${c.id}:${level}` } }),
-            prisma.user.update({ where: { id: userId }, data: { points: { decrement: hint.cost } } }),
-          ]
-        : []),
-    ]);
+      });
+      if (hint.cost > 0) {
+        await grantPoints(tx, userId, { points: -hint.cost, xp: 0, reason: `hint:${c.id}:${level}` });
+      }
+    });
   }
   res.json({ level, cost: hint.cost, text: hint.text });
 });
@@ -332,3 +387,10 @@ api.post('/challenges/:id/favorite', requireAuth('STUDENT'), async (req, res) =>
   else await prisma.favorite.create({ data: { userId, challengeId: id } });
   res.json({ favorite: !existing });
 });
+
+// ───────────── Autres espaces ─────────────
+
+api.use(profileRouter);
+api.use(duelsRouter);
+api.use('/teacher', teacherRouter);
+api.use('/admin', adminRouter);

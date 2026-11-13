@@ -29,7 +29,7 @@ npm run dev      # http://localhost:5173
 npm run build    # vérification des types + build de production
 ```
 
-La connexion, le tableau de bord, les défis (avec correction SQL réelle), le classement et l'en-tête du profil passent par l'API et la base. Les autres pages (duels, succès, espace enseignant, espace administrateur, détails du profil) utilisent encore des données factices (`front/src/data/`).
+Toutes les pages (étudiant, enseignant, administrateur) lisent l'API et la base : le front ne contient plus de données factices. L'API doit donc tourner (`cd back && npm run dev`), avec la base démarrée.
 
 ## Base de données (PostgreSQL + Prisma)
 
@@ -40,14 +40,16 @@ cd back
 npm install
 cp .env.example .env          # une seule fois
 npm run db:up                 # démarre PostgreSQL dans Docker
-npm run db:migrate -- --name init   # crée les tables
+npm run db:migrate           # applique les migrations (crée ou met à jour les tables)
 npm run db:generate           # génère le client Prisma (nécessaire avant le seed et l'API)
-npm run db:seed               # données de test (comptes : <prénom>.<nom>@etu.example / levelup123)
+npm run db:seed               # données de démonstration (comptes : <prénom>.<nom>@etu.example / levelup123)
 npm run db:studio             # interface web pour voir les données
 ```
 
 Le schéma est dans `back/prisma/schema.prisma`. Après l'avoir modifié :
 `npm run db:migrate -- --name <description>`, puis commiter le dossier `prisma/migrations/`.
+
+⚠️ `npm run db:seed` **remet les comptes de démonstration à zéro** (mot de passe, activité, badges, duels). Les comptes et défis créés à la main ne sont pas touchés.
 
 ## Documentation
 
@@ -61,7 +63,7 @@ Le schéma est dans `back/prisma/schema.prisma`. Après l'avoir modifié :
 
 ```
 front/       Application React
-back/        Base de données (Prisma) et futur API
+back/        API Express et base de données (Prisma)
 docs/        Documentation
 maquettes/   Maquettes HTML d'origine
 ```

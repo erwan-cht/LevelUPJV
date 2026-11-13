@@ -72,12 +72,18 @@ export interface Verdict {
 }
 
 /** Compare le résultat de l'étudiant à celui de la requête de référence (valeurs, pas noms de colonnes). */
-export function judge(setupSql: string, solutionSql: string, answer: string): Verdict | { error: string } {
+export function judge(
+  setupSql: string,
+  solutionSql: string,
+  answer: string,
+  orderMatters?: boolean,
+): Verdict | { error: string } {
   const expected = runQuery(setupSql, solutionSql);
   const obtained = runQuery(setupSql, answer);
   if (obtained.error) return { error: obtained.error };
 
-  const ordered = /order\s+by/i.test(solutionSql);
+  // Sauf choix contraire de l'enseignant, l'ordre compte quand la requête de référence contient un ORDER BY.
+  const ordered = orderMatters ?? /order\s+by/i.test(solutionSql);
   const key = (r: string[]) => JSON.stringify(r);
   const want = expected.rows.map(key);
   const got = obtained.rows.map(key);

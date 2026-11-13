@@ -60,87 +60,67 @@ Fait tourner les logiciels dans des **conteneurs** identiques sur toutes les mac
 
 ## 4. Ce qui est fait
 
-### Page d'accueil (tableau de bord) : `front/`
+Le projet fonctionne de bout en bout : **front React, API Express et base PostgreSQL**, pour les trois profils (étudiant, enseignant, administrateur). Le détail technique est dans [`documentation.md`](documentation.md).
 
-Fidèle à la maquette, et adaptée au mobile.
+### Front : `front/`
 
-| Bloc | Composant |
-|---|---|
-| En-tête et navigation | `Header.tsx` |
-| Carte de bienvenue (niveau, XP, stats) | `HeroCard.tsx` |
-| Mes défis (onglets En cours / Recommandés / Terminés) | `MyChallenges.tsx` |
-| Mon activité (graphique sur 7 jours) | `Activity.tsx` |
-| Badges et prochain badge | `Badges.tsx` |
-| Classement (onglets Promo / Groupe) | `Ranking.tsx` |
-| Objectifs du jour et série | `DailyObjectives.tsx` |
-| Bannière des duels | `DuelBanner.tsx` |
-| Composants communs (Card, ProgressBar, Avatar, Tabs…) | `ui.tsx` |
-
-Autres fichiers :
-- `src/types.ts` : types des données (User, Challenge, RankingEntry…), qui serviront aussi de contrat avec le back.
-- `src/data/mock.ts` : **données factices**.
-- `src/index.css` : couleurs de la charte (`navy`, `brand`…) et police Poppins.
-
-### Toutes les pages du Figma (données factices) : `front/src/pages/`
-
-Routage avec **React Router**, connexion factice (rôle mémorisé dans le navigateur), mise en page commune (en-tête, pied de page, menu burger mobile).
+Fidèle aux maquettes, adapté au mobile, avec routage **React Router**, connexion par jeton, mise en page commune (en-tête, pied de page, menu burger mobile).
 
 | Route | Page | Fichier |
 |---|---|---|
 | `/connexion` | Connexion (onglets Étudiant / Enseignant) | `Connexion.tsx` |
 | `/` | Tableau de bord | `Dashboard.tsx` |
 | `/defis` | Catalogue de défis (recherche, filtres, favoris) | `Defis.tsx` |
-| `/defis/:id` | Page d'un défi SQL (éditeur, résultat, indices IA) | `DefiDetail.tsx` |
+| `/defis/:id` | Page d'un défi SQL (éditeur, correction, indices) | `DefiDetail.tsx` |
 | `/classement` | Classement (podium, tableau, ligues, points par semaine) | `Classement.tsx` |
-| `/duels` | Préparer un duel, invitations, camarades en ligne | `Duels.tsx` |
-| `/duels/en-direct` | Duel en direct (chrono, éditeur, tests, fil) | `DuelLive.tsx` |
+| `/duels` | Préparer un duel, invitations, camarades de la promo | `Duels.tsx` |
+| `/duels/:id` | Duel en direct (chrono, éditeur, progression, fil) | `DuelLive.tsx` |
 | `/profil` | Profil (onglets Aperçu, Badges, Historique, Compétences BUT) | `Profil.tsx` |
-| `/succes` | Tous les succès (pagination, réclamer) | `Succes.tsx` |
-| `/enseignant` | Tableau de bord enseignant (Mes promos) | `teacher/MesPromos.tsx` |
-| `/enseignant/challenges` | Créer un défi | `teacher/CreerDefi.tsx` |
-| `/enseignant/competences`, `/enseignant/aide` | Compétences BUT, aide | `teacher/` |
+| `/succes` | Tous les succès (progression, réclamer) | `Succes.tsx` |
+| `/enseignant`, `/enseignant/challenges`, `/enseignant/competences`, `/enseignant/aide` | Espace enseignant | `teacher/` |
+| `/admin`, `/admin/promotions`, `/admin/contenus`, `/admin/referentiel` | Espace administrateur | `admin/` |
 
-Données factices : `src/data/mock.ts`, `catalog.ts`, `community.ts`, `teacher.ts`.
+Aucune donnée n'est écrite en dur dans le front : chaque page lit l'API.
 
-### Visualiser la page
+### Base de données et API : `back/`
+
+- PostgreSQL sous Docker, schéma Prisma, migrations versionnées, données de démonstration (`npm run db:seed`).
+- API Express : connexion (JWT), tableau de bord, défis avec **correction SQL automatique**, classement avec évolution du rang, badges avec règles, profil, **duels** (invitation, chrono, victoire), espace enseignant (statistiques, assignation de défis, création de défis), espace administrateur (comptes, promotions, contenus, référentiel, journal).
+
+### Lancer le projet
+
+```powershell
+cd back
+npm install
+npm run db:up        # Docker Desktop démarré
+npm run db:migrate
+npm run db:seed
+npm run dev          # API sur http://localhost:3001
+```
 
 ```powershell
 cd front
-npm install      # la première fois seulement
-npm run dev      # puis ouvrir http://localhost:5173
+npm install
+npm run dev          # site sur http://localhost:5173
 ```
 
-Mode mobile : **F12**, puis **Ctrl + Shift + M**.
+Comptes : `oscar.lescot` (étudiant), `m.dupuis` (enseignant), `admin.dsi` (administrateur), mot de passe `levelup123`. Mode mobile : **F12**, puis **Ctrl + Shift + M**.
 
-## 5. Point important : les données sont factices
+## 5. Ce qui n'est pas encore fait
 
-Les chiffres affichés (Oscar, 2 450 pts, niveau 7…) sont **écrits en dur** dans `src/data/mock.ts`. Il n'y a encore **ni comptes, ni base de données, ni back-end**.
+- Correction automatique des défis algorithmique et web (aujourd'hui seuls les défis SQL sont corrigés, donc seuls eux servent aux duels).
+- Duels en temps réel par WebSocket (aujourd'hui l'état est relu toutes les 2 secondes).
+- Vrais indices IA, envoi d'e-mails, arène live.
+- Tests automatiques et CI.
 
-C'est voulu : construire l'interface avec des *mocks* permet de valider le rendu et d'avancer front et back en parallèle.
+La liste complète des limites est dans [`documentation.md`](documentation.md) (§ 9 et 10).
 
 ## 6. Prochaines étapes
 
-### Version minimale
-
-1. Page de **connexion et d'inscription**, avec redirection quand on n'est pas connecté.
-2. **Back-end** : Express + Prisma + PostgreSQL (sous Docker), inscription et connexion.
-3. Remplacer les mocks par des **appels à l'API** (`GET /api/me`, `GET /api/classement`…).
-4. Liste des défis et **soumission avec tests** (défis SQL d'abord).
-5. Calcul de l'XP, des niveaux et du classement.
-
-### Ensuite
-
-- React Router et les autres pages (Défis, Classement, Duels, Mon profil).
-- Menu burger sur mobile.
-- Badges, objectifs du jour, graphique d'activité avec de vraies données.
-
-### Bonus
-
-- **Duels en temps réel** (Socket.IO).
-- Connexion via le **CAS UPJV**.
-- Défis dans d'autres langages (Judge0 ou Docker).
-
-> ⚠️ Les deux parties les plus difficiles sont les **duels en temps réel** et l'**exécution du code dans un bac à sable** : à attaquer une fois la base solide.
+1. Défis algorithmique et web corrigés dans des conteneurs isolés.
+2. Socket.IO pour les duels, puis l'arène live en amphi.
+3. Indices IA, envoi d'e-mails.
+4. Pistes « effet wow » ci-dessous.
 
 ### Pistes « effet wow » (facultatives, à ne pas toutes faire)
 
