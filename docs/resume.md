@@ -120,3 +120,25 @@ C'est voulu : construire l'interface avec des *mocks* permet de valider le rendu
 - Défis dans d'autres langages (Judge0 ou Docker).
 
 > ⚠️ Les deux parties les plus difficiles sont les **duels en temps réel** et l'**exécution du code dans un bac à sable** : à attaquer une fois la base solide.
+
+### Pistes « effet wow » (facultatives, à ne pas toutes faire)
+
+Par ordre de priorité conseillé. Détails dans `docs/cahier-des-charges.md` (§6).
+
+| # | Piste | Effort | Impact | Dépend de |
+|---|---|---|---|---|
+| W-01 | **Visualisation de l'exécution SQL** (signature) : animation FROM, JOIN, WHERE, GROUP BY, et étape où le résultat diverge | Très élevé | Très élevé | Défis SQL avec tests |
+| W-02 | **Arène live en amphi** : session lancée par le prof, QR code, classement en direct au vidéoprojecteur | Élevé | Très élevé | Socket.IO, comptes |
+| W-03 | **Analyse de la salle en direct** après l'arène (erreurs fréquentes, question bloquante) | Faible | Élevé | W-02 |
+| W-04 | **Arbre de compétences façon RPG** calqué sur le référentiel BUT | Moyen | Élevé | Compétences en base |
+| W-05 | **Tuteur IA branché sur la visualisation** : pointe l'étape fautive, l'animation y saute | Moyen | Élevé | W-01 |
+| W-06 | **Génération de défis pour les profs** à partir d'un schéma de BDD | Moyen | Élevé | Défis SQL |
+| W-07 | **Game feel** : animations, sons, transitions (1 à 2 semaines en fin de projet) | Moyen | Moyen/Élevé | Socle terminé |
+
+**Conseils :**
+- Faire un **prototype rapide de W-01** dans les premières semaines et le montrer à un enseignant.
+- Priorité : W-01 (signature) + W-02 (moment de démo), puis W-03 (meilleur rapport effort/effet).
+- Réserver 1 à 2 semaines en fin de projet pour W-07.
+- Faire au moins un **test réel avec une autre classe** (20 min en fin de TD BDD).
+
+**Démo cible :** arbre de compétences, puis défi SQL raté et corrigé grâce à la visualisation et au tuteur, puis QR code pour lancer l'arène avec le jury, puis analyse de leurs erreurs en direct.
