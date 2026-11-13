@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LevelUPJV – Créer un défi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700&family=Poppins:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Source+Serif+4:ital,wght@1,400&display=swap" rel="stylesheet">
+<style>
+/* ===== Styles communs LevelUPJV ===== */
+/* LevelUPJV – styles communs (DA : navbar compacte, bandeau marine, cartes grises douces) */
+:root {
+  --navy: #273656; --navy-2: #3A4A6B; --brand-navy: #002E5A;
+  --orange: #E98C08; --orange-dark: #B75F00;
+  --blue: #0094CC; --orange-ent: #E06C1B; --red: #CC3340; --green: #198754;
+  --card: #ECEFF4; --line: #D5DBE6; --text: #3A3A3A; --muted: #5F6B7A; --peach: #FFF1D9;
+  --radius: 12px; --radius-s: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Poppins', Verdana, sans-serif; color: var(--navy); background: #fff; line-height: 1.5; font-size: 15px; min-height: 100vh; display: flex; flex-direction: column; }
+.serif { font-family: 'Source Serif 4', Georgia, serif; font-style: italic; }
+.mono { font-family: 'Roboto Mono', Consolas, monospace; }
+a { color: inherit; }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; border-radius: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--navy); color: #fff; padding: 8px 14px; border-radius: 6px; z-index: 100; }
+.skip:focus { left: 8px; }
+
+/* ---------- Navbar ---------- */
+.topbar { position: sticky; top: 0; z-index: 50; background: #fff; box-shadow: 0 2px 8px rgba(39,54,86,.12); }
+.topbar-in { max-width: 1512px; margin: 0 auto; padding: 0 48px; height: 76px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; }
+.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo svg { width: 38px; height: 38px; }
+.wordmark { font-family: 'League Spartan', sans-serif; font-weight: 700; font-size: 28px; line-height: 1; color: var(--brand-navy); }
+.wordmark b { color: var(--orange); font-weight: 700; }
+.role-tag { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; background: var(--card); padding: 3px 10px; border-radius: 999px; margin-left: 6px; }
+.menu { display: flex; gap: 36px; list-style: none; }
+.menu a { display: block; text-decoration: none; font-weight: 500; font-size: 15px; padding: 26px 0 22px; border-bottom: 3px solid transparent; color: var(--text); }
+.menu a:hover { color: var(--navy); border-bottom-color: var(--line); }
+.menu a[aria-current="page"] { color: var(--navy); font-weight: 600; border-bottom-color: var(--orange); }
+.tools { justify-self: end; display: flex; align-items: center; gap: 14px; }
+.pts-chip { background: var(--peach); font-weight: 600; font-size: 14px; padding: 6px 14px; border-radius: 999px; white-space: nowrap; }
+.avatar-s { width: 42px; height: 42px; border-radius: 50%; background: var(--navy); display: grid; place-items: center; text-decoration: none; }
+.avatar-s svg { width: 24px; height: 24px; }
+
+/* ---------- Page ---------- */
+main { flex: 1; width: 100%; max-width: 1512px; margin: 0 auto; padding: 32px 48px 64px; display: flex; flex-direction: column; gap: 24px; }
+.crumb { font-size: 14px; color: var(--muted); display: flex; gap: 8px; }
+.crumb strong { color: var(--navy); font-weight: 600; }
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.head h1 { font-size: 32px; font-weight: 700; line-height: 1.2; }
+.head p { font-size: 15px; color: var(--muted); }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+/* ---------- Cartes ---------- */
+.card { background: var(--card); border-radius: var(--radius); padding: 22px 24px 24px; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.card-head h2 { font-size: 20px; font-weight: 600; line-height: 1.3; }
+.hint { font-size: 13px; color: var(--muted); }
+.link { font-size: 13px; font-weight: 600; color: var(--orange-dark); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.inner { background: #fff; border-radius: var(--radius-s); }
+
+/* ---------- Boutons ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 14px; padding: 10px 20px; border-radius: 8px; border: 2px solid var(--navy); background: var(--navy); color: #fff; text-decoration: none; white-space: nowrap; transition: background .15s, transform .15s; }
+.btn:hover { background: var(--navy-2); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.orange { background: var(--orange); border-color: var(--orange); color: var(--navy); }
+.btn.orange:hover { background: #F5A02A; border-color: #F5A02A; }
+.btn.orange:disabled:hover { background: var(--orange); border-color: var(--orange); }
+.btn.line { background: transparent; color: var(--navy); }
+.btn.line:hover { background: #fff; }
+.btn.ghost { background: transparent; border-color: rgba(255,255,255,.55); color: #fff; }
+.btn.ghost:hover { background: rgba(255,255,255,.12); }
+.btn.danger { background: transparent; border-color: var(--red); color: var(--red); }
+.btn.danger:hover { background: #FBE9EB; }
+.btn.sm { padding: 7px 14px; font-size: 13px; }
+
+/* ---------- Onglets / segments ---------- */
+.seg { display: inline-flex; background: #fff; border-radius: 8px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.seg button:hover { color: var(--navy); }
+.seg button[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+
+/* ---------- Progression ---------- */
+.track { height: 10px; border-radius: 5px; background: #fff; overflow: hidden; }
+.track i { display: block; height: 100%; width: 0; background: var(--navy); border-radius: 5px; transition: width .9s cubic-bezier(.2,.7,.2,1); }
+.card .track { background: #fff; }
+
+/* ---------- Avatars, pastilles ---------- */
+.av { width: 34px; height: 34px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 12px; font-weight: 600; display: inline-grid; place-items: center; flex: none; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); display: inline-block; flex: none; }
+.chip { font-size: 12.5px; font-weight: 600; padding: 4px 12px; border-radius: 999px; background: var(--card); }
+
+/* ---------- Formulaires ---------- */
+select { background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 9px 34px 9px 14px; font-size: 14px; font-weight: 500; appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M5 9l7 7 7-7' stroke='%23273656' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 14px; }
+.search { position: relative; }
+.search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; }
+.search input { width: 100%; background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 14px 10px 38px; font-size: 14px; }
+.search input:focus-visible { outline: 0; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(233,140,8,.45); }
+
+/* ---------- Pied de page ---------- */
+footer { background: var(--navy); color: #fff; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 10px 48px; font-size: 14px; font-weight: 500; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1180px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 820px) {
+  .topbar-in { padding: 0 16px; grid-template-columns: auto 1fr; height: 64px; }
+  .menu { display: none; }
+  main { padding: 20px 16px 48px; }
+  footer { padding: 10px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+<style>
+  .grid { grid-template-columns: minmax(0, 1fr) 400px; }
+  .steps { display: flex; gap: 8px; flex-wrap: wrap; }
+  .step { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 999px; background: var(--card); }
+  .step b { width: 22px; height: 22px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 12px; color: var(--navy); }
+  .step:hover { color: var(--navy); }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  label.l, .legend { font-size: 13px; font-weight: 600; }
+  .help { font-size: 12.5px; color: var(--muted); font-weight: 400; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  input[type="text"], input[type="number"], textarea { width: 100%; background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 14.5px; }
+  textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
+  textarea.mono, input.mono { font-family: 'Roboto Mono', Consolas, monospace; font-size: 13.5px; }
+  input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 0; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(233,140,8,.45); }
+  select { width: 100%; }
+  [aria-invalid="true"] { border-color: var(--red) !important; }
+  .count { text-align: right; font-size: 12px; color: var(--muted); }
+
+  .types { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .type { position: relative; }
+  .type input { position: absolute; opacity: 0; }
+  .type label { display: block; background: #fff; border: 2px solid transparent; border-radius: var(--radius-s); padding: 12px 14px; cursor: pointer; height: 100%; }
+  .type label strong { display: block; font-size: 14.5px; }
+  .type label span { font-size: 13px; color: var(--muted); }
+  .type input:checked + label { border-color: var(--navy); }
+  .type input:focus-visible + label { outline: 3px solid var(--orange); outline-offset: 2px; }
+
+  /* Tests */
+  .tests { display: flex; flex-direction: column; gap: 8px; }
+  .trow { display: grid; grid-template-columns: 28px 1.2fr 1fr 1fr auto; gap: 8px; align-items: center; background: #fff; border-radius: var(--radius-s); padding: 8px 10px; }
+  .trow.head { background: transparent; padding: 0 10px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .trow .n { font-weight: 700; color: var(--muted); text-align: center; }
+  .trow input { padding: 7px 10px; font-size: 13px; }
+  .icon-btn { background: none; border: 0; border-radius: 6px; width: 32px; height: 32px; display: grid; place-items: center; color: var(--muted); }
+  .icon-btn:hover { background: #FBE9EB; color: var(--red); }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .add { margin-top: 10px; }
+  .only-sql[hidden], .only-code[hidden] { display: none; }
+  .checkline { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; margin-top: 12px; }
+  .checkline input { width: 18px; height: 18px; accent-color: var(--navy); }
+
+  /* Switches */
+  .sw { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; background: #fff; border-radius: var(--radius-s); padding: 12px 14px; margin-bottom: 8px; }
+  .sw strong { display: block; font-size: 14px; font-weight: 600; line-height: 1.3; }
+  .sw span.d { font-size: 12.5px; color: var(--muted); }
+  .switch { width: 46px; height: 26px; border-radius: 13px; border: 0; background: #B8C1D1; position: relative; transition: background .15s; flex: none; }
+  .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .switch[aria-checked="true"] { background: var(--green); }
+  .switch[aria-checked="true"]::after { transform: translateX(20px); }
+  .range { display: flex; align-items: center; gap: 12px; }
+  .range input { flex: 1; accent-color: var(--navy); }
+  .range output { min-width: 44px; font-weight: 700; text-align: right; }
+
+  /* Aperçu */
+  .sticky { position: sticky; top: 92px; display: flex; flex-direction: column; gap: 24px; }
+  .preview { background: #fff; border-radius: var(--radius); border-top: 5px solid var(--c, var(--blue)); padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .preview .top { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 600; }
+  .diff { display: inline-flex; gap: 3px; margin-right: 6px; vertical-align: middle; }
+  .diff i { width: 14px; height: 6px; border-radius: 3px; background: #C7CFDC; } .diff i.on { background: var(--navy); }
+  .preview h3 { font-size: 17px; font-weight: 600; line-height: 1.3; }
+  .preview h3.empty { color: var(--muted); font-weight: 500; }
+  .preview p { font-size: 13.5px; color: var(--text); max-height: 4.8em; overflow: hidden; }
+  .preview .meta { display: flex; gap: 14px; font-size: 12.5px; color: var(--muted); }
+  .preview .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+  .preview .pts { font-size: 18px; font-weight: 700; color: var(--orange-dark); }
+  .tag { font-size: 11.5px; font-weight: 700; padding: 2px 10px; border-radius: 4px; background: var(--card); }
+  .check { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .check li { display: flex; align-items: center; gap: 10px; font-size: 14px; background: #fff; border-radius: var(--radius-s); padding: 8px 12px; }
+  .check .ck { width: 22px; height: 22px; border-radius: 50%; background: #C7CFDC; display: grid; place-items: center; flex: none; }
+  .check .ck svg { width: 12px; height: 12px; opacity: 0; }
+  .check li.ok .ck { background: var(--green); } .check li.ok .ck svg { opacity: 1; }
+  .meter { margin-bottom: 12px; }
+  .meter .row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .meter .track { background: #fff; height: 8px; } .meter .track i { background: var(--orange); }
+  .btns { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+  .btns .btn { width: 100%; }
+  .confirm { display: none; border-radius: 8px; padding: 10px 14px; font-size: 14px; margin-top: 12px; }
+  .confirm.show { display: block; }
+  .confirm.ok { background: #E8F6EE; border: 1px solid var(--green); color: #14532d; }
+  .confirm.draft { background: var(--peach); border: 1px solid var(--orange); color: #6b3a00; }
+
+  @media (max-width: 1180px) { .grid { grid-template-columns: 1fr; } .sticky { position: static; } }
+  @media (max-width: 720px) { .row2, .row3, .types { grid-template-columns: 1fr; } .trow { grid-template-columns: 24px 1fr 1fr auto; } .trow .c3 { display: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="logo" href="enseignant.html" aria-label="LevelUPJV, espace enseignant">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#002E5A" d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3z"/><path fill="#002E5A" d="M5 13.2v4L12 21l7-3.8v-4L12 17z"/></svg>
+      <span class="wordmark">Level<b>UP</b>JV</span><span class="role-tag">Enseignant</span>
+    </a>
+    <nav aria-label="Navigation principale">
+      <ul class="menu">
+        <li><a href="enseignant.html">Mes promos</a></li>
+        <li><a href="creation-defi.html" aria-current="page">Challenges</a></li>
+        <li><a href="#">Compétences</a></li>
+        <li><a href="#">Aide</a></li>
+      </ul>
+    </nav>
+    <div class="tools"><span class="pts-chip">Mme Dupuis</span>
+      <a class="avatar-s" href="connexion.html" aria-label="Se déconnecter"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.5" fill="#fff"/><path d="M3.5 21c0-4.6 3.8-7.2 8.5-7.2s8.5 2.6 8.5 7.2z" fill="#fff"/></svg></a></div>
+  </div>
+</header>
+
+<main id="contenu">
+  <div class="crumb"><a href="enseignant.html" style="text-decoration:none">Mes promos</a><span>›</span><span>Challenges</span><span>›</span><strong>Nouveau défi</strong></div>
+
+  <div class="head">
+    <div><h1>Créer un défi</h1><p class="serif">Écris l’énoncé, définis comment la réponse est corrigée, et publie-le pour ta promo.</p></div>
+    <nav class="steps" aria-label="Sections du formulaire">
+      <a class="step" href="#s1"><b>1</b>Informations</a><a class="step" href="#s2"><b>2</b>Énoncé</a><a class="step" href="#s3"><b>3</b>Correction</a><a class="step" href="#s4"><b>4</b>Anti-triche</a><a class="step" href="#s5"><b>5</b>Indices IA</a>
+    </nav>
+  </div>
+
+  <div class="grid">
+    <form class="col" id="form" novalidate>
+
+      <!-- 1 -->
+      <section class="card" id="s1" aria-labelledby="h1">
+        <div class="card-head"><h2 id="h1">1. Informations</h2></div>
+        <div class="field"><label class="l" for="title">Titre du défi</label>
+          <input id="title" type="text" maxlength="70" placeholder="Ex. : Jointures et sous-requêtes" aria-describedby="title-count">
+          <span class="count" id="title-count">0 / 70</span></div>
+        <div class="row2">
+          <div class="field"><label class="l" for="subject">Matière</label>
+            <select id="subject"><option value="Bases de données" data-c="#0094CC">Bases de données</option><option value="Algorithmique" data-c="#E06C1B">Algorithmique</option><option value="Développement web" data-c="#273656">Développement web</option><option value="Réseaux & systèmes" data-c="#CC3340">Réseaux & systèmes</option></select></div>
+          <div class="field"><label class="l" for="comp">Compétence BUT visée</label>
+            <select id="comp"><option value="">Choisir…</option><option>Réaliser</option><option>Optimiser</option><option>Administrer</option><option>Gérer</option><option>Conduire</option><option>Collaborer</option></select></div>
+        </div>
+        <div class="row3">
+          <div class="field"><span class="legend" id="l-d">Difficulté</span>
+            <div class="seg" role="group" aria-labelledby="l-d" id="diff"><button type="button" aria-pressed="false" data-v="1">Facile</button><button type="button" aria-pressed="true" data-v="2">Moyen</button><button type="button" aria-pressed="false" data-v="3">Difficile</button></div></div>
+          <div class="field"><label class="l" for="min">Durée estimée (min)</label><input id="min" type="number" min="5" max="120" step="5" value="25"></div>
+          <div class="field"><label class="l" for="pts">Points</label><input id="pts" type="number" min="10" max="200" step="10" value="70"><span class="help" id="pts-help">Suggestion selon la difficulté : 70 pts</span></div>
+        </div>
+      </section>
+
+      <!-- 2 -->
+      <section class="card" id="s2" aria-labelledby="h2">
+        <div class="card-head"><h2 id="h2">2. Énoncé</h2></div>
+        <div class="field"><label class="l" for="statement">Énoncé</label>
+          <textarea id="statement" placeholder="Décris le travail à faire, les contraintes et le format attendu." aria-describedby="st-count"></textarea>
+          <span class="count" id="st-count">0 caractère</span></div>
+        <div class="field"><label class="l" for="rules">Consigne ou contrainte <span class="help">(facultatif)</span></label>
+          <input id="rules" type="text" placeholder="Ex. : Une seule requête SELECT. Interdit : sorted()"></div>
+      </section>
+
+      <!-- 3 -->
+      <section class="card" id="s3" aria-labelledby="h3">
+        <div class="card-head"><h2 id="h3">3. Correction automatique</h2></div>
+        <div class="field"><span class="legend" id="l-t">Type de correction</span>
+          <div class="types" role="radiogroup" aria-labelledby="l-t">
+            <div class="type"><input type="radio" name="ctype" id="t-sql" value="sql" checked><label for="t-sql"><strong>Requête SQL</strong><span>On compare le résultat obtenu au résultat attendu.</span></label></div>
+            <div class="type"><input type="radio" name="ctype" id="t-code" value="code"><label for="t-code"><strong>Code (tests)</strong><span>On lance des tests dans un conteneur isolé.</span></label></div>
+          </div></div>
+
+        <div class="only-sql" id="sql-box">
+          <div class="field"><label class="l" for="ref">Requête de référence</label>
+            <textarea id="ref" class="mono" spellcheck="false" placeholder="SELECT …" style="min-height:130px"></textarea>
+            <span class="help">Son résultat sert de résultat attendu. Elle est exécutée sur le jeu de données du défi.</span></div>
+          <label class="checkline"><input type="checkbox" id="order"> L’ordre des lignes compte pour la correction</label>
+        </div>
+
+        <div class="only-code" id="code-box" hidden>
+          <div class="tests" id="tests" aria-label="Tests de correction"></div>
+          <button class="btn line sm add" id="add-test" type="button">+ Ajouter un test</button>
+        </div>
+      </section>
+
+      <!-- 4 -->
+      <section class="card" id="s4" aria-labelledby="h4">
+        <div class="card-head"><h2 id="h4">4. Anti-triche et limites</h2></div>
+        <div class="sw"><div><strong id="a1">Générer une variante par étudiant</strong><span class="d">Les valeurs du jeu de données changent d’un étudiant à l’autre.</span></div><button type="button" class="switch" role="switch" aria-checked="true" aria-labelledby="a1"></button></div>
+        <div class="sw"><div><strong id="a2">Détection de similarité</strong><span class="d">Signale les réponses trop proches entre étudiants.</span></div><button type="button" class="switch" role="switch" aria-checked="true" aria-labelledby="a2" id="sim"></button></div>
+        <div class="field" id="sim-field" style="margin-top:12px"><label class="l" for="thr">Seuil de similarité</label>
+          <div class="range"><input id="thr" type="range" min="50" max="100" value="85"><output id="thr-out" for="thr">85 %</output></div></div>
+        <div class="row3" style="margin-top:12px">
+          <div class="field"><label class="l" for="time">Temps max par exécution</label><select id="time"><option>2 s</option><option selected>5 s</option><option>10 s</option></select></div>
+          <div class="field"><label class="l" for="mem">Mémoire max</label><select id="mem"><option>64 Mo</option><option selected>128 Mo</option><option>256 Mo</option></select></div>
+          <div class="field"><label class="l" for="tries">Tentatives max</label><select id="tries"><option>3</option><option selected>5</option><option>10</option><option>Illimitées</option></select></div>
+        </div>
+      </section>
+
+      <!-- 5 -->
+      <section class="card" id="s5" aria-labelledby="h5">
+        <div class="card-head"><h2 id="h5">5. Indices IA</h2></div>
+        <div class="sw"><div><strong id="i1">Autoriser les indices IA</strong><span class="d">Des indices progressifs qui aident sans donner la réponse.</span></div><button type="button" class="switch" role="switch" aria-checked="true" aria-labelledby="i1" id="ai"></button></div>
+        <div id="ai-box">
+          <div class="field" style="margin-top:12px"><span class="legend" id="l-n">Nombre d’indices</span>
+            <div class="seg" role="group" aria-labelledby="l-n" id="nh"><button type="button" aria-pressed="false" data-v="2">2</button><button type="button" aria-pressed="true" data-v="3">3</button><button type="button" aria-pressed="false" data-v="4">4</button></div>
+            <span class="help" id="cost-help">Le 1er est gratuit, le 2e coûte 10 pts, le 3e 20 pts.</span></div>
+          <div class="field"><label class="l" for="guide">Consignes pour l’IA <span class="help">(facultatif)</span></label>
+            <textarea id="guide" placeholder="Ex. : Insister sur l’ordre d’exécution WHERE / GROUP BY / HAVING. Ne jamais écrire la requête complète." style="min-height:90px"></textarea></div>
+        </div>
+      </section>
+    </form>
+
+    <aside class="sticky" aria-label="Aperçu et publication">
+      <section class="card" aria-labelledby="h-prev">
+        <div class="card-head"><h2 id="h-prev">Aperçu étudiant</h2></div>
+        <article class="preview" id="preview" aria-live="polite"></article>
+      </section>
+      <section class="card" aria-labelledby="h-pub">
+        <div class="card-head"><h2 id="h-pub">Avant de publier</h2></div>
+        <div class="meter"><div class="row"><strong id="m-txt">0 / 5</strong><span id="m-sub">à compléter</span></div><div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" id="m-bar" aria-label="Avancement du formulaire"><i style="width:0%"></i></div></div>
+        <ul class="check" id="check"></ul>
+        <div class="field" style="margin-top:14px"><label class="l" for="target">Publier pour</label>
+          <select id="target"><option>BUT 2 · Groupe 2</option><option>BUT 2 · Tous les groupes</option><option>BUT 1 Informatique</option><option>BUT 3 Informatique</option></select></div>
+        <div class="btns">
+          <button class="btn orange" id="publish" type="button" disabled>Publier le défi</button>
+          <button class="btn line" id="draft" type="button">Enregistrer le brouillon</button>
+        </div>
+        <div class="confirm" id="confirm" role="status"></div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<footer><span>LevelUPJV - IUT d’Amiens - BUT Informatique - Mentions légales - Contact</span><span>(levelup-01)</span></footer>
+
+<script>
+  // Démonstration : le formulaire n’enregistre rien (aucun serveur).
+  const $ = id => document.getElementById(id);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const SUGGEST = { 1: 40, 2: 70, 3: 110 }, LABEL = { 1: 'Facile', 2: 'Moyen', 3: 'Difficile' };
+  let diff = 2, ptsTouched = false, ctype = 'sql';
+  const tests = [{ i: '[]', o: '[]' }, { i: '[3, 2, 1]', o: '[1, 2, 3]' }];
+
+  // ---------- Tests de code ----------
+  const XICON = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+  function renderTests() {
+    $('tests').innerHTML = '<div class="trow head" aria-hidden="true"><span></span><span>Nom du test</span><span class="c3">Entrée</span><span>Sortie attendue</span><span></span></div>' +
+      tests.map((t, k) => `<div class="trow"><span class="n">${k + 1}</span>
+        <input type="text" aria-label="Nom du test ${k + 1}" data-k="${k}" data-f="n" value="${t.n || ''}" placeholder="Ex. : Liste vide">
+        <input type="text" class="mono c3" aria-label="Entrée du test ${k + 1}" data-k="${k}" data-f="i" value="${t.i}" placeholder="[3, 2, 1]">
+        <input type="text" class="mono" aria-label="Sortie attendue du test ${k + 1}" data-k="${k}" data-f="o" value="${t.o}" placeholder="[1, 2, 3]">
+        <button class="icon-btn" type="button" data-del="${k}" aria-label="Supprimer le test ${k + 1}">${XICON}</button></div>`).join('');
+  }
+  $('tests').addEventListener('input', e => { const f = e.target.dataset.f; if (f) { tests[+e.target.dataset.k][f] = e.target.value; update(); } });
+  $('tests').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (b) { tests.splice(+b.dataset.del, 1); renderTests(); update(); } });
+  $('add-test').addEventListener('click', () => { tests.push({ n: '', i: '', o: '' }); renderTests(); update(); const ins = $$('#tests .trow:last-child input')[0]; ins && ins.focus(); });
+  $$('input[name="ctype"]').forEach(r => r.addEventListener('change', () => {
+    ctype = r.value; $('sql-box').hidden = ctype !== 'sql'; $('code-box').hidden = ctype !== 'code'; update();
+  }));
+  renderTests();
+
+  // ---------- Champs ----------
+  $('title').addEventListener('input', () => { $('title-count').textContent = `${$('title').value.length} / 70`; update(); });
+  $('statement').addEventListener('input', () => { const n = $('statement').value.length; $('st-count').textContent = `${n} caractère${n > 1 ? 's' : ''}`; update(); });
+  ['subject', 'comp', 'min', 'rules', 'ref', 'target'].forEach(id => $(id).addEventListener('input', update));
+  $('pts').addEventListener('input', () => { ptsTouched = true; update(); });
+  $('diff').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    diff = +b.dataset.v; $$('#diff button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    if (!ptsTouched) $('pts').value = SUGGEST[diff];
+    $('pts-help').textContent = `Suggestion selon la difficulté : ${SUGGEST[diff]} pts`; update();
+  });
+  $('nh').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    $$('#nh button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    const n = +b.dataset.v, costs = [0, 10, 20, 30].slice(0, n);
+    $('cost-help').textContent = 'Le 1er est gratuit' + costs.slice(1).map((c, i) => `, le ${i + 2}e coûte ${c} pts`).join('') + '.';
+  });
+  $$('.switch').forEach(s => s.addEventListener('click', () => {
+    s.setAttribute('aria-checked', s.getAttribute('aria-checked') !== 'true');
+    if (s.id === 'sim') $('sim-field').hidden = s.getAttribute('aria-checked') !== 'true';
+    if (s.id === 'ai') $('ai-box').hidden = s.getAttribute('aria-checked') !== 'true';
+  }));
+  $('thr').addEventListener('input', () => { $('thr-out').textContent = $('thr').value + ' %'; });
+
+  // ---------- Aperçu + checklist ----------
+  const CK = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function update() {
+    const opt = $('subject').selectedOptions[0], title = $('title').value.trim(), st = $('statement').value.trim();
+    $('preview').style.setProperty('--c', opt.dataset.c);
+    $('preview').innerHTML = `<div class="top"><span><span class="diff" aria-hidden="true">${[1, 2, 3].map(i => `<i class="${i <= diff ? 'on' : ''}"></i>`).join('')}</span>${LABEL[diff]}</span><span class="tag">${opt.value}</span></div>
+      <h3 class="${title ? '' : 'empty'}">${title ? esc(title) : 'Titre du défi'}</h3>
+      <p>${st ? esc(st) : 'L’énoncé apparaîtra ici.'}</p>
+      <div class="meta"><span>⏱ ${$('min').value || 0} min</span><span>${ctype === 'sql' ? 'Requête SQL' : tests.length + ' test' + (tests.length > 1 ? 's' : '')}</span></div>
+      <div class="foot"><span class="pts">+${$('pts').value || 0} pts</span><span class="btn sm" aria-hidden="true">Commencer</span></div>`;
+    const filledTests = tests.filter(t => t.i.trim() && t.o.trim()).length;
+    const items = [
+      ['Titre renseigné', title.length >= 5],
+      ['Énoncé d’au moins 40 caractères', st.length >= 40],
+      ['Compétence BUT choisie', !!$('comp').value],
+      [ctype === 'sql' ? 'Requête de référence' : 'Au moins 3 tests complets', ctype === 'sql' ? $('ref').value.trim().toLowerCase().includes('select') : filledTests >= 3],
+      ['Points entre 10 et 200', +$('pts').value >= 10 && +$('pts').value <= 200],
+    ];
+    const done = items.filter(i => i[1]).length;
+    $('check').innerHTML = items.map(([t, ok]) => `<li class="${ok ? 'ok' : ''}"><span class="ck">${CK}</span>${t}</li>`).join('');
+    $('m-txt').textContent = `${done} / ${items.length}`; $('m-sub').textContent = done === items.length ? 'prêt à publier' : 'à compléter';
+    $('m-bar').setAttribute('aria-valuenow', done); $('m-bar').firstElementChild.style.width = (done / items.length * 100) + '%';
+    $('publish').disabled = done !== items.length;
+  }
+  $('publish').addEventListener('click', () => {
+    const c = $('confirm'); c.className = 'confirm show ok';
+    c.textContent = `Défi « ${$('title').value.trim()} » publié pour ${$('target').value}. Les étudiants sont notifiés.`;
+  });
+  $('draft').addEventListener('click', () => {
+    const c = $('confirm'); c.className = 'confirm show draft';
+    c.textContent = 'Brouillon enregistré. Tu pourras le reprendre depuis « Challenges ».';
+  });
+  update();
+</script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LevelUPJV – Connexion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700&family=Poppins:wght@400;500;600;700&family=Source+Serif+4:ital,wght@1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #273656; --navy-2: #3A4A6B; --brand-navy: #002E5A;
+    --orange: #E98C08; --orange-dark: #B75F00;
+    --blue: #0094CC; --orange-ent: #E06C1B; --red: #CC3340; --green: #198754;
+    --card: #ECEFF4; --line: #C1CADA; --text: #3A3A3A; --muted: #5F6B7A; --peach: #FFF1D9;
+    --radius: 12px; --radius-s: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Poppins', Verdana, sans-serif; color: var(--navy); background: #fff; line-height: 1.5; font-size: 15px; min-height: 100vh; display: flex; flex-direction: column; }
+  .serif { font-family: 'Source Serif 4', Georgia, serif; font-style: italic; }
+  a { color: inherit; }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; border-radius: 4px; }
+
+  header { box-shadow: 0 2px 8px rgba(39,54,86,.12); }
+  .bar { max-width: 1512px; margin: 0 auto; padding: 0 48px; height: 76px; display: flex; justify-content: space-between; align-items: center; }
+  .logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo svg { width: 38px; height: 38px; }
+  .wordmark { font-family: 'League Spartan', sans-serif; font-weight: 700; font-size: 28px; line-height: 1; color: var(--brand-navy); }
+  .wordmark b { color: var(--orange); font-weight: 700; }
+  .help { font-size: 14px; font-weight: 500; text-decoration: none; padding: 8px 14px; border-radius: 6px; }
+  .help:hover { background: var(--card); }
+
+  main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; padding: 48px 48px 64px; display: grid; grid-template-columns: 1fr 460px; gap: 32px; align-items: stretch; }
+
+  /* Left pitch */
+  .pitch { background: var(--navy); color: #fff; border-radius: var(--radius); padding: 40px; display: flex; flex-direction: column; gap: 28px; }
+  .pitch h1 { font-size: 34px; font-weight: 700; line-height: 1.2; }
+  .pitch h1 em { font-style: normal; color: var(--orange); }
+  .pitch > p { font-size: 15px; opacity: .92; max-width: 460px; }
+  .feats { list-style: none; display: grid; gap: 14px; }
+  .feats li { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: center; background: rgba(255,255,255,.1); border-radius: var(--radius-s); padding: 12px 16px; }
+  .feats .ic { width: 44px; height: 44px; border-radius: 10px; background: var(--c); display: grid; place-items: center; }
+  .feats .ic svg { width: 22px; height: 22px; }
+  .feats strong { display: block; font-size: 15px; font-weight: 600; line-height: 1.3; }
+  .feats span { font-size: 13px; opacity: .88; }
+  .quote { margin-top: auto; font-size: 14px; opacity: .9; border-left: 3px solid var(--orange); padding-left: 14px; }
+
+  /* Card */
+  .card { background: var(--card); border-radius: var(--radius); padding: 32px 32px 28px; align-self: center; }
+  .card h2 { font-size: 26px; font-weight: 700; line-height: 1.2; }
+  .card .lead { font-size: 14px; color: var(--muted); margin: 4px 0 20px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; background: #fff; border-radius: 8px; padding: 3px; gap: 2px; margin-bottom: 20px; }
+  .tab { border: 0; background: transparent; padding: 9px 12px; border-radius: 6px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .tab:hover { color: var(--navy); }
+  .tab[aria-selected="true"] { background: var(--navy); color: #fff; }
+
+  form { display: flex; flex-direction: column; gap: 16px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 13px; font-weight: 600; }
+  .input { position: relative; }
+  input[type="text"], input[type="password"] { width: 100%; background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 15px; transition: border-color .15s, box-shadow .15s; }
+  input[type="text"]::placeholder, input[type="password"]::placeholder { color: #8A94A3; }
+  input:focus-visible { outline: 0; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(233,140,8,.45); }
+  input[aria-invalid="true"] { border-color: var(--red); }
+  .toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: 0; padding: 6px 10px; font-size: 13px; font-weight: 600; color: var(--navy); border-radius: 6px; cursor: pointer; }
+  .toggle:hover { background: var(--card); }
+  .err { font-size: 13px; color: var(--red); font-weight: 500; min-height: 0; }
+  .err:empty { display: none; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; }
+  .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; }
+  .check input { width: 18px; height: 18px; accent-color: var(--navy); }
+  .row a { font-weight: 600; font-size: 13px; color: var(--orange-dark); text-decoration: none; }
+  .row a:hover { text-decoration: underline; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; font-weight: 600; font-size: 15px; padding: 13px 20px; border-radius: 8px; border: 2px solid var(--orange); background: var(--orange); color: var(--navy); cursor: pointer; transition: background .15s, transform .15s; }
+  .btn:hover { background: #F5A02A; border-color: #F5A02A; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .7; cursor: progress; }
+  .btn.alt { background: transparent; border-color: var(--navy); color: var(--navy); }
+  .btn.alt:hover { background: #fff; }
+  .btn svg { width: 18px; height: 18px; }
+  .or { display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+  .alert { display: none; align-items: flex-start; gap: 10px; border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+  .alert.show { display: flex; }
+  .alert.error { background: #FBE9EB; border: 1px solid var(--red); color: #7A1D26; }
+  .alert.ok { background: #E8F6EE; border: 1px solid var(--green); color: #14532d; }
+  .alert svg { width: 20px; height: 20px; flex: none; margin-top: 2px; }
+  .foot { margin-top: 18px; font-size: 12.5px; color: var(--muted); text-align: center; }
+
+  footer { background: var(--navy); color: #fff; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 10px 48px; font-size: 14px; font-weight: 500; }
+
+  @media (max-width: 960px) {
+    main { grid-template-columns: 1fr; padding: 24px 16px 48px; }
+    .card { order: -1; align-self: stretch; }
+    .bar { padding: 0 16px; } footer { padding: 10px 16px; }
+    .pitch { padding: 28px 22px; } .pitch h1 { font-size: 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <a class="logo" href="connexion.html" aria-label="LevelUPJV">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#002E5A" d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3z"/><path fill="#002E5A" d="M5 13.2v4L12 21l7-3.8v-4L12 17z"/></svg>
+      <span class="wordmark">Level<b>UP</b>JV</span>
+    </a>
+    <a class="help" href="#">Besoin d’aide ?</a>
+  </div>
+</header>
+
+<main>
+  <section class="pitch" aria-labelledby="pitch-title">
+    <h1 id="pitch-title">Entraîne-toi, <em>progresse</em>, grimpe au classement.</h1>
+    <p>La plateforme de défis pensée par des étudiants du BUT Informatique de l’IUT d’Amiens, alignée sur ce que tu vois en cours.</p>
+    <ul class="feats">
+      <li style="--c: var(--blue)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><strong>Correction automatique</strong><span>SQL, algorithmique, web : ta réponse est testée en quelques secondes.</span></div></li>
+      <li style="--c: var(--orange-ent)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10v5a5 5 0 01-10 0V4zM7 6H4v1.5A3.5 3.5 0 007.5 11M17 6h3v1.5A3.5 3.5 0 0116.5 11M12 14v4M8 20h8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><strong>Points, niveaux et ligues</strong><span>Un classement par promo et par groupe pour rester motivé.</span></div></li>
+      <li style="--c: var(--red)"><span class="ic"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#fff"/></svg></span><div><strong>Duels en temps réel</strong><span>Affronte un camarade sur le même exercice.</span></div></li>
+    </ul>
+    <p class="quote serif">Chaque défi est relié aux compétences du référentiel BUT pour alimenter ton portfolio.</p>
+  </section>
+
+  <section class="card" aria-labelledby="login-title">
+    <h2 id="login-title">Connexion</h2>
+    <p class="lead">Content de te revoir. Connecte-toi pour reprendre là où tu t’étais arrêté.</p>
+
+    <div class="tabs" role="tablist" aria-label="Type de compte">
+      <button class="tab" role="tab" id="tab-etu" aria-selected="true" data-role="étudiant">Étudiant</button>
+      <button class="tab" role="tab" id="tab-ens" aria-selected="false" data-role="enseignant">Enseignant</button>
+    </div>
+
+    <div id="alert" class="alert error" role="alert" aria-live="assertive">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M12 7v6M12 16.5v.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <span id="alert-text"></span>
+    </div>
+
+    <form id="form" novalidate aria-labelledby="login-title" role="tabpanel">
+      <div class="field">
+        <label for="user">Identifiant ENT</label>
+        <div class="input"><input id="user" name="user" type="text" autocomplete="username" placeholder="prenom.nom" aria-describedby="user-err" required></div>
+        <p class="err" id="user-err"></p>
+      </div>
+      <div class="field">
+        <label for="pass">Mot de passe</label>
+        <div class="input">
+          <input id="pass" name="pass" type="password" autocomplete="current-password" placeholder="Ton mot de passe" aria-describedby="pass-err" required style="padding-right: 90px">
+          <button class="toggle" type="button" id="toggle" aria-controls="pass" aria-label="Afficher le mot de passe">Afficher</button>
+        </div>
+        <p class="err" id="pass-err"></p>
+      </div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="remember"> Rester connecté</label>
+        <a href="#">Mot de passe oublié ?</a>
+      </div>
+      <button class="btn" type="submit" id="submit">Se connecter</button>
+      <div class="or" aria-hidden="true">ou</div>
+      <button class="btn alt" type="button" id="cas">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3z" fill="#273656"/><path d="M5 13.2v4L12 21l7-3.8v-4L12 17z" fill="#273656"/></svg>
+        Se connecter avec le compte UPJV
+      </button>
+    </form>
+    <p class="foot">Première visite ? Utilise tes identifiants de l’ENT : ton compte LevelUPJV est créé automatiquement.</p>
+  </section>
+</main>
+
+<footer>
+  <span>LevelUPJV - IUT d’Amiens - BUT Informatique - Mentions légales - Contact</span>
+  <span>(levelup-01)</span>
+</footer>
+
+<script>
+  // Démonstration : aucune authentification réelle. Compte de test : oscar.lescot / levelup
+  const $ = id => document.getElementById(id);
+  let role = 'étudiant';
+
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
+    role = t.dataset.role; hideAlert();
+  }));
+
+  $('toggle').addEventListener('click', () => {
+    const show = $('pass').type === 'password';
+    $('pass').type = show ? 'text' : 'password';
+    $('toggle').textContent = show ? 'Masquer' : 'Afficher';
+    $('toggle').setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+  });
+
+  function setErr(id, inputId, msg) {
+    $(id).textContent = msg;
+    $(inputId).setAttribute('aria-invalid', msg ? 'true' : 'false');
+  }
+  function showAlert(type, msg) {
+    const a = $('alert'); a.className = 'alert show ' + type; $('alert-text').textContent = msg;
+  }
+  function hideAlert() { $('alert').className = 'alert error'; }
+
+  ['user', 'pass'].forEach(id => $(id).addEventListener('input', () => { setErr(id + '-err', id, ''); hideAlert(); }));
+
+  $('form').addEventListener('submit', e => {
+    e.preventDefault(); hideAlert();
+    const u = $('user').value.trim(), p = $('pass').value;
+    setErr('user-err', 'user', u ? '' : 'Saisis ton identifiant ENT.');
+    setErr('pass-err', 'pass', p ? '' : 'Saisis ton mot de passe.');
+    if (!u || !p) { (u ? $('pass') : $('user')).focus(); return; }
+
+    $('submit').disabled = true; $('submit').textContent = 'Connexion…';
+    setTimeout(() => {
+      $('submit').disabled = false; $('submit').textContent = 'Se connecter';
+      if (u.toLowerCase() === 'oscar.lescot' && p === 'levelup') {
+        showAlert('ok', `Connexion réussie en tant qu’${role}. Redirection vers ton tableau de bord…`); setTimeout(() => { location.href = role === 'enseignant' ? 'enseignant.html' : 'accueil.html'; }, 1200);
+      } else {
+        showAlert('error', 'Identifiant ou mot de passe incorrect. Vérifie tes informations ou réinitialise ton mot de passe.');
+        $('pass').select();
+      }
+    }, 900);
+  });
+
+  $('cas').addEventListener('click', () => showAlert('ok', 'Redirection vers le service d’authentification de l’UPJV…'));
+</script>
+</body>
+</html>

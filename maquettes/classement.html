@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LevelUPJV – Classement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700&family=Poppins:wght@400;500;600;700&family=Source+Serif+4:ital,wght@1,400&display=swap" rel="stylesheet">
+<style>
+/* ===== Styles communs LevelUPJV ===== */
+/* LevelUPJV – styles communs (DA : navbar compacte, bandeau marine, cartes grises douces) */
+:root {
+  --navy: #273656; --navy-2: #3A4A6B; --brand-navy: #002E5A;
+  --orange: #E98C08; --orange-dark: #B75F00;
+  --blue: #0094CC; --orange-ent: #E06C1B; --red: #CC3340; --green: #198754;
+  --card: #ECEFF4; --line: #D5DBE6; --text: #3A3A3A; --muted: #5F6B7A; --peach: #FFF1D9;
+  --radius: 12px; --radius-s: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Poppins', Verdana, sans-serif; color: var(--navy); background: #fff; line-height: 1.5; font-size: 15px; min-height: 100vh; display: flex; flex-direction: column; }
+.serif { font-family: 'Source Serif 4', Georgia, serif; font-style: italic; }
+.mono { font-family: 'Roboto Mono', Consolas, monospace; }
+a { color: inherit; }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; border-radius: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--navy); color: #fff; padding: 8px 14px; border-radius: 6px; z-index: 100; }
+.skip:focus { left: 8px; }
+
+/* ---------- Navbar ---------- */
+.topbar { position: sticky; top: 0; z-index: 50; background: #fff; box-shadow: 0 2px 8px rgba(39,54,86,.12); }
+.topbar-in { max-width: 1512px; margin: 0 auto; padding: 0 48px; height: 76px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; }
+.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo svg { width: 38px; height: 38px; }
+.wordmark { font-family: 'League Spartan', sans-serif; font-weight: 700; font-size: 28px; line-height: 1; color: var(--brand-navy); }
+.wordmark b { color: var(--orange); font-weight: 700; }
+.role-tag { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; background: var(--card); padding: 3px 10px; border-radius: 999px; margin-left: 6px; }
+.menu { display: flex; gap: 36px; list-style: none; }
+.menu a { display: block; text-decoration: none; font-weight: 500; font-size: 15px; padding: 26px 0 22px; border-bottom: 3px solid transparent; color: var(--text); }
+.menu a:hover { color: var(--navy); border-bottom-color: var(--line); }
+.menu a[aria-current="page"] { color: var(--navy); font-weight: 600; border-bottom-color: var(--orange); }
+.tools { justify-self: end; display: flex; align-items: center; gap: 14px; }
+.pts-chip { background: var(--peach); font-weight: 600; font-size: 14px; padding: 6px 14px; border-radius: 999px; white-space: nowrap; }
+.avatar-s { width: 42px; height: 42px; border-radius: 50%; background: var(--navy); display: grid; place-items: center; text-decoration: none; }
+.avatar-s svg { width: 24px; height: 24px; }
+
+/* ---------- Page ---------- */
+main { flex: 1; width: 100%; max-width: 1512px; margin: 0 auto; padding: 32px 48px 64px; display: flex; flex-direction: column; gap: 24px; }
+.crumb { font-size: 14px; color: var(--muted); display: flex; gap: 8px; }
+.crumb strong { color: var(--navy); font-weight: 600; }
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.head h1 { font-size: 32px; font-weight: 700; line-height: 1.2; }
+.head p { font-size: 15px; color: var(--muted); }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+/* ---------- Cartes ---------- */
+.card { background: var(--card); border-radius: var(--radius); padding: 22px 24px 24px; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.card-head h2 { font-size: 20px; font-weight: 600; line-height: 1.3; }
+.hint { font-size: 13px; color: var(--muted); }
+.link { font-size: 13px; font-weight: 600; color: var(--orange-dark); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.inner { background: #fff; border-radius: var(--radius-s); }
+
+/* ---------- Boutons ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 14px; padding: 10px 20px; border-radius: 8px; border: 2px solid var(--navy); background: var(--navy); color: #fff; text-decoration: none; white-space: nowrap; transition: background .15s, transform .15s; }
+.btn:hover { background: var(--navy-2); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.orange { background: var(--orange); border-color: var(--orange); color: var(--navy); }
+.btn.orange:hover { background: #F5A02A; border-color: #F5A02A; }
+.btn.orange:disabled:hover { background: var(--orange); border-color: var(--orange); }
+.btn.line { background: transparent; color: var(--navy); }
+.btn.line:hover { background: #fff; }
+.btn.ghost { background: transparent; border-color: rgba(255,255,255,.55); color: #fff; }
+.btn.ghost:hover { background: rgba(255,255,255,.12); }
+.btn.danger { background: transparent; border-color: var(--red); color: var(--red); }
+.btn.danger:hover { background: #FBE9EB; }
+.btn.sm { padding: 7px 14px; font-size: 13px; }
+
+/* ---------- Onglets / segments ---------- */
+.seg { display: inline-flex; background: #fff; border-radius: 8px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.seg button:hover { color: var(--navy); }
+.seg button[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+
+/* ---------- Progression ---------- */
+.track { height: 10px; border-radius: 5px; background: #fff; overflow: hidden; }
+.track i { display: block; height: 100%; width: 0; background: var(--navy); border-radius: 5px; transition: width .9s cubic-bezier(.2,.7,.2,1); }
+.card .track { background: #fff; }
+
+/* ---------- Avatars, pastilles ---------- */
+.av { width: 34px; height: 34px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 12px; font-weight: 600; display: inline-grid; place-items: center; flex: none; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); display: inline-block; flex: none; }
+.chip { font-size: 12.5px; font-weight: 600; padding: 4px 12px; border-radius: 999px; background: var(--card); }
+
+/* ---------- Formulaires ---------- */
+select { background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 9px 34px 9px 14px; font-size: 14px; font-weight: 500; appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M5 9l7 7 7-7' stroke='%23273656' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 14px; }
+.search { position: relative; }
+.search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; }
+.search input { width: 100%; background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 14px 10px 38px; font-size: 14px; }
+.search input:focus-visible { outline: 0; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(233,140,8,.45); }
+
+/* ---------- Pied de page ---------- */
+footer { background: var(--navy); color: #fff; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 10px 48px; font-size: 14px; font-weight: 500; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1180px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 820px) {
+  .topbar-in { padding: 0 16px; grid-template-columns: auto 1fr; height: 64px; }
+  .menu { display: none; }
+  main { padding: 20px 16px 48px; }
+  footer { padding: 10px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+<style>
+  .filters { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .selects { display: flex; gap: 12px; flex-wrap: wrap; }
+  .tabs-bar .seg { background: var(--card); }
+  .search.top { min-width: 280px; }
+
+  /* Podium */
+  .podium { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: end; }
+  .pod { background: var(--card); border-radius: var(--radius); border-top: 6px solid var(--c); padding: 20px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+  .pod.first { padding: 28px 16px 28px; background: #fff; box-shadow: 0 4px 16px rgba(39,54,86,.14); border: 2px solid var(--c); border-top-width: 6px; }
+  .pod .place { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: var(--c); }
+  .pod .place svg { width: 22px; height: 22px; }
+  .pod .avatar { width: 68px; height: 68px; border-radius: 50%; background: var(--c); color: #fff; display: grid; place-items: center; font-weight: 600; font-size: 24px; margin: 8px 0 4px; }
+  .pod.first .avatar { width: 84px; height: 84px; font-size: 30px; }
+  .pod .nm { font-size: 17px; font-weight: 600; line-height: 1.3; }
+  .pod.first .nm { font-size: 20px; }
+  .pod .meta { font-size: 13px; color: var(--muted); }
+  .pod .pts { font-size: 28px; font-weight: 700; line-height: 1.3; }
+  .pod.first .pts { font-size: 34px; }
+  .pod .pts small { font-size: 14px; font-weight: 600; color: var(--orange-dark); margin-left: 4px; }
+  .pod .lv { background: #fff; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 999px; margin-top: 4px; }
+  .pod.first .lv { background: var(--card); }
+
+  /* Tableau */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0 6px; min-width: 640px; }
+  thead th { text-align: left; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 4px 16px; font-weight: 600; }
+  tbody td { background: #fff; padding: 9px 16px; font-size: 14px; color: var(--text); vertical-align: middle; }
+  tbody td:first-child { border-radius: var(--radius-s) 0 0 var(--radius-s); }
+  tbody td:last-child { border-radius: 0 var(--radius-s) var(--radius-s) 0; }
+  td.rank { font-weight: 700; font-size: 16px; color: var(--navy); width: 64px; }
+  td.pts { font-weight: 700; color: var(--navy); }
+  .who { display: flex; align-items: center; gap: 12px; font-weight: 500; font-size: 15px; color: var(--navy); }
+  tr.me td { background: var(--peach); border-top: 2px solid var(--orange); border-bottom: 2px solid var(--orange); }
+  tr.me td:first-child { border-left: 2px solid var(--orange); }
+  tr.me td:last-child { border-right: 2px solid var(--orange); }
+  tr.me .who { font-weight: 700; }
+  tr.me .av { background: var(--orange); color: var(--navy); }
+  tr.sep td { background: transparent; text-align: center; font-weight: 700; color: var(--muted); padding: 0; letter-spacing: .3em; line-height: 1; }
+  .delta { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+  .delta.up { color: var(--green); } .delta.down { color: var(--red); } .delta.same { color: var(--muted); }
+  .delta svg { width: 11px; height: 11px; }
+  .empty td { text-align: center; color: var(--muted); padding: 24px; }
+
+  /* Ligues */
+  .league { display: flex; align-items: center; gap: 12px; padding: 9px 14px; border-radius: var(--radius-s); background: #fff; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
+  .league .d { width: 18px; height: 18px; border-radius: 50%; background: var(--d); flex: none; }
+  .league .name { flex: 1; }
+  .league .thr { font-size: 13px; color: var(--muted); }
+  .league.current { background: var(--peach); outline: 2px solid var(--orange); outline-offset: -2px; font-weight: 700; }
+  .league.current .thr { color: var(--orange-dark); font-weight: 600; }
+  .goal { background: #fff; border-radius: var(--radius-s); padding: 12px 14px; margin-top: 14px; }
+  .goal .row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+  .goal .row span { font-size: 13px; color: var(--text); }
+  .goal .track { background: var(--card); height: 8px; }
+  .goal .track i { background: var(--orange); }
+  .goal p { font-size: 13px; margin-top: 8px; }
+
+  /* Graphique */
+  .chart { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; align-items: end; height: 170px; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; font-size: 12px; color: var(--muted); font-weight: 500; }
+  .bar-col b { font-size: 12px; color: var(--text); font-weight: 600; }
+  .bar-col i { display: block; width: min(100%, 38px); height: var(--h); background: var(--navy); border-radius: 6px 6px 3px 3px; }
+  .bar-col.now i { background: var(--orange); }
+  .bar-col.now { color: var(--navy); font-weight: 700; }
+  .total { margin-top: 14px; background: #fff; border-radius: var(--radius-s); padding: 10px 14px; font-size: 13px; }
+
+  @media (max-width: 720px) { .podium { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="logo" href="accueil.html" aria-label="LevelUPJV, accueil">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#002E5A" d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3z"/><path fill="#002E5A" d="M5 13.2v4L12 21l7-3.8v-4L12 17z"/></svg>
+      <span class="wordmark">Level<b>UP</b>JV</span>
+    </a>
+    <nav aria-label="Navigation principale">
+      <ul class="menu">
+        <li><a href="tableau-de-bord.html">Tableau de bord</a></li>
+        <li><a href="defis.html">Défis</a></li>
+        <li><a href="classement.html" aria-current="page">Classement</a></li>
+        <li><a href="lobby-duel.html">Duels</a></li>
+        <li><a href="profil.html">Mon profil</a></li>
+      </ul>
+    </nav>
+    <div class="tools"><span class="pts-chip">2 450 pts</span>
+      <a class="avatar-s" href="profil.html" aria-label="Mon profil"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.5" fill="#fff"/><path d="M3.5 21c0-4.6 3.8-7.2 8.5-7.2s8.5 2.6 8.5 7.2z" fill="#fff"/></svg></a></div>
+  </div>
+</header>
+
+<main id="contenu">
+  <div class="crumb"><span>Accueil</span><span>›</span><strong>Classement</strong></div>
+
+  <div class="head">
+    <div>
+      <h1>Classement</h1>
+      <p class="serif">Saison 2025-2026 · mis à jour il y a 4 minutes</p>
+    </div>
+    <label class="search top">
+      <span class="sr-only">Rechercher un étudiant</span>
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="#3A3A3A" stroke-width="2"/><path d="M15.5 15.5L21 21" stroke="#3A3A3A" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="q" type="search" placeholder="Rechercher un étudiant">
+    </label>
+  </div>
+
+  <div class="filters">
+    <div class="seg tabs-bar" role="tablist" aria-label="Portée du classement" id="scope">
+      <button role="tab" aria-selected="true" data-s="promo">Ma promo</button>
+      <button role="tab" aria-selected="false" data-s="groupe">Mon groupe</button>
+      <button role="tab" aria-selected="false" data-s="saison">Saison</button>
+      <button role="tab" aria-selected="false" data-s="ligue">Ligue</button>
+    </div>
+    <div class="selects">
+      <label class="sr-only" for="promo">Promotion</label>
+      <select id="promo"><option>BUT 2 Informatique</option><option>BUT 1 Informatique</option><option>BUT 3 Informatique</option></select>
+      <label class="sr-only" for="season">Saison</label>
+      <select id="season"><option>Saison 2025-2026</option><option>Saison 2024-2025</option></select>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <section class="podium" aria-label="Podium">
+        <article class="pod" style="--c: var(--blue)">
+          <span class="place"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10v5a5 5 0 01-10 0V4zM7 6H4v1.5A3.5 3.5 0 007.5 11M17 6h3v1.5A3.5 3.5 0 0116.5 11M12 14v4M8 20h8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>2e</span>
+          <span class="avatar">HB</span><span class="nm">Hugo Bernard</span><span class="meta">BUT 2 · Groupe 1</span>
+          <span class="pts">2 980<small>pts</small></span><span class="lv">Niveau 8</span>
+        </article>
+        <article class="pod first" style="--c: var(--orange-ent)">
+          <span class="place"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10v5a5 5 0 01-10 0V4zM7 6H4v1.5A3.5 3.5 0 007.5 11M17 6h3v1.5A3.5 3.5 0 0116.5 11M12 14v4M8 20h8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>1er</span>
+          <span class="avatar">LM</span><span class="nm">Léa Marchand</span><span class="meta">BUT 2 · Groupe 2</span>
+          <span class="pts">3 120<small>pts</small></span><span class="lv">Niveau 9</span>
+        </article>
+        <article class="pod" style="--c: var(--navy)">
+          <span class="place"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10v5a5 5 0 01-10 0V4zM7 6H4v1.5A3.5 3.5 0 007.5 11M17 6h3v1.5A3.5 3.5 0 0116.5 11M12 14v4M8 20h8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>3e</span>
+          <span class="avatar">CD</span><span class="nm">Camille Dubois</span><span class="meta">BUT 2 · Groupe 3</span>
+          <span class="pts">2 760<small>pts</small></span><span class="lv">Niveau 8</span>
+        </article>
+      </section>
+
+      <section class="card" aria-labelledby="h-table">
+        <div class="card-head"><h2 id="h-table">Du 4e au 13e</h2><span class="hint" id="hint">Ta position est mise en avant</span></div>
+        <div class="table-wrap">
+          <table id="ranking">
+            <thead><tr><th>Rang</th><th>Étudiant</th><th>Groupe</th><th>Niveau</th><th>Défis</th><th>Points</th><th>Évol.</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <aside class="col">
+      <section class="card" aria-labelledby="h-lg">
+        <div class="card-head"><h2 id="h-lg">Ma ligue · Argent</h2></div>
+        <div class="league" style="--d:#5BC8F5"><span class="d"></span><span class="name">Diamant</span><span class="thr">5 000+ pts</span></div>
+        <div class="league" style="--d:#9FB1C9"><span class="d"></span><span class="name">Platine</span><span class="thr">4 000+ pts</span></div>
+        <div class="league" style="--d:#E9B308"><span class="d"></span><span class="name">Or</span><span class="thr">3 000+ pts</span></div>
+        <div class="league current" style="--d:#8E99A8"><span class="d"></span><span class="name">Argent</span><span class="thr">2 000+ pts</span></div>
+        <div class="league" style="--d:#B46A2E"><span class="d"></span><span class="name">Bronze</span><span class="thr">0+ pts</span></div>
+        <div class="goal">
+          <div class="row"><strong>Vers la ligue Or</strong><span>2 450 / 3 000</span></div>
+          <div class="track" role="progressbar" aria-valuemin="2000" aria-valuemax="3000" aria-valuenow="2450" aria-label="Progression vers la ligue Or"><i data-w="82%"></i></div>
+          <p class="serif">Encore 550 pts pour monter en ligue Or.</p>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-wk">
+        <div class="card-head"><h2 id="h-wk">Points par semaine</h2><span class="hint">6 dernières semaines</span></div>
+        <div class="chart" role="img" aria-label="Points par semaine : 180, 240, 150, 320, 280, 410">
+          <div class="bar-col"><b>180</b><i style="--h:53px"></i>S1</div>
+          <div class="bar-col"><b>240</b><i style="--h:70px"></i>S2</div>
+          <div class="bar-col"><b>150</b><i style="--h:44px"></i>S3</div>
+          <div class="bar-col"><b>320</b><i style="--h:94px"></i>S4</div>
+          <div class="bar-col"><b>280</b><i style="--h:82px"></i>S5</div>
+          <div class="bar-col now"><b>410</b><i style="--h:120px"></i>S6</div>
+        </div>
+        <p class="total serif">+410 pts cette semaine : ta meilleure à ce jour.</p>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<footer><span>LevelUPJV - IUT d’Amiens - BUT Informatique - Mentions légales - Contact</span><span>(levelup-01)</span></footer>
+
+<script>
+  // Données fictives de démonstration
+  const rows = [
+    { rank: 4,  name: 'Nathan Leroy', grp: 'G2', lvl: 8, done: 56, pts: 2690, d:  1 },
+    { rank: 5,  name: 'Inès Petit',   grp: 'G1', lvl: 8, done: 54, pts: 2640, d:  0 },
+    { rank: 6,  name: 'Thomas Roux',  grp: 'G3', lvl: 8, done: 52, pts: 2610, d: -1 },
+    { rank: 7,  name: 'Manon Fabre',  grp: 'G2', lvl: 7, done: 50, pts: 2580, d:  3 },
+    { rank: 8,  name: 'Lucas Girard', grp: 'G1', lvl: 7, done: 48, pts: 2550, d:  0 },
+    { rank: 9,  name: 'Sarah Morel',  grp: 'G3', lvl: 7, done: 47, pts: 2520, d: -2 },
+    { rank: 10, name: 'Yanis Blanc',  grp: 'G1', lvl: 7, done: 45, pts: 2490, d:  1 },
+    { sep: true },
+    { rank: 11, name: 'Jade Henry',   grp: 'G2', lvl: 7, done: 44, pts: 2465, d: -1 },
+    { rank: 12, name: 'Oscar Lescot (toi)', grp: 'G2', lvl: 7, done: 43, pts: 2450, d: 2, me: true },
+    { rank: 13, name: 'Enzo Lopez',   grp: 'G3', lvl: 6, done: 42, pts: 2420, d:  0 },
+  ];
+  const $ = s => document.querySelector(s);
+  const fmt = n => n.toLocaleString('fr-FR');
+  const initials = n => n.replace(/\(.*\)/, '').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const arrow = up => `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="${up ? 'M6 2l5 8H1z' : 'M6 10L1 2h10z'}" fill="currentColor"/></svg>`;
+  const delta = d => d === 0 ? '<span class="delta same" aria-label="stable">—</span>'
+    : `<span class="delta ${d > 0 ? 'up' : 'down'}" aria-label="${d > 0 ? 'gagne' : 'perd'} ${Math.abs(d)} place${Math.abs(d) > 1 ? 's' : ''}">${arrow(d > 0)}${Math.abs(d)}</span>`;
+
+  function render(filter = '') {
+    const f = filter.trim().toLowerCase();
+    const list = rows.filter(r => r.sep ? !f : r.name.toLowerCase().includes(f));
+    $('#ranking tbody').innerHTML = list.length ? list.map(r => r.sep
+      ? '<tr class="sep" aria-hidden="true"><td colspan="7">···</td></tr>'
+      : `<tr class="${r.me ? 'me' : ''}"><td class="rank">${r.rank}</td>
+          <td><div class="who"><span class="av">${initials(r.name)}</span>${r.name}</div></td>
+          <td>${r.grp}</td><td>Niv. ${r.lvl}</td><td>${r.done}</td><td class="pts">${fmt(r.pts)}</td><td>${delta(r.d)}</td></tr>`).join('')
+      : '<tr class="empty"><td colspan="7">Aucun étudiant ne correspond à cette recherche.</td></tr>';
+  }
+  render();
+  $('#q').addEventListener('input', e => render(e.target.value));
+  $('#scope').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#scope button').forEach(x => x.setAttribute('aria-selected', x === b));
+  });
+  requestAnimationFrame(() => document.querySelectorAll('[data-w]').forEach(el => el.style.width = el.dataset.w));
+</script>
+</body>
+</html>

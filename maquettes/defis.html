@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LevelUPJV – Défis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700&family=Poppins:wght@400;500;600;700&family=Source+Serif+4:ital,wght@1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #273656; --navy-2: #3A4A6B; --brand-navy: #002E5A;
+    --orange: #E98C08; --orange-dark: #B75F00;
+    --blue: #0094CC; --orange-ent: #E06C1B; --red: #CC3340; --green: #198754;
+    --card: #ECEFF4; --line: #D5DBE6; --text: #3A3A3A; --muted: #5F6B7A; --peach: #FFF1D9;
+    --radius: 12px; --radius-s: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Poppins', Verdana, sans-serif; color: var(--navy); background: #fff; line-height: 1.5; font-size: 15px; }
+  .serif { font-family: 'Source Serif 4', Georgia, serif; font-style: italic; }
+  a { color: inherit; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; border-radius: 4px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .skip { position: absolute; left: -999px; top: 8px; background: var(--navy); color: #fff; padding: 8px 14px; border-radius: 6px; z-index: 100; }
+  .skip:focus { left: 8px; }
+
+  /* Navbar */
+  .topbar { position: sticky; top: 0; z-index: 50; background: #fff; box-shadow: 0 2px 8px rgba(39,54,86,.12); }
+  .topbar-in { max-width: 1512px; margin: 0 auto; padding: 0 48px; height: 76px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; }
+  .logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo svg { width: 38px; height: 38px; }
+  .wordmark { font-family: 'League Spartan', sans-serif; font-weight: 700; font-size: 28px; line-height: 1; color: var(--brand-navy); }
+  .wordmark b { color: var(--orange); font-weight: 700; }
+  .menu { display: flex; gap: 36px; list-style: none; }
+  .menu a { display: block; text-decoration: none; font-weight: 500; font-size: 15px; padding: 26px 0 22px; border-bottom: 3px solid transparent; color: var(--text); }
+  .menu a:hover { color: var(--navy); border-bottom-color: var(--line); }
+  .menu a[aria-current="page"] { color: var(--navy); font-weight: 600; border-bottom-color: var(--orange); }
+  .tools { justify-self: end; display: flex; align-items: center; gap: 14px; }
+  .pts-chip { background: var(--peach); font-weight: 600; font-size: 14px; padding: 6px 14px; border-radius: 999px; }
+  .avatar-s { width: 42px; height: 42px; border-radius: 50%; background: var(--navy); display: grid; place-items: center; }
+  .avatar-s svg { width: 24px; height: 24px; }
+
+  main { max-width: 1512px; margin: 0 auto; padding: 32px 48px 64px; display: flex; flex-direction: column; gap: 24px; }
+  .crumb { font-size: 14px; color: var(--muted); display: flex; gap: 8px; }
+  .crumb strong { color: var(--navy); font-weight: 600; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  .head h1 { font-size: 32px; font-weight: 700; line-height: 1.2; }
+  .head p { font-size: 15px; color: var(--muted); }
+  .global { display: flex; gap: 12px; }
+  .pill { background: var(--card); border-radius: var(--radius-s); padding: 8px 16px; font-size: 13px; }
+  .pill strong { font-size: 18px; font-weight: 700; margin-right: 4px; }
+
+  /* Matières */
+  .subjects { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .subject { text-align: left; background: var(--card); border: 2px solid transparent; border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; transition: border-color .15s, transform .15s, background .15s; }
+  .subject:hover { background: #E3E8F0; }
+  .subject[aria-pressed="true"] { border-color: var(--c); background: #fff; box-shadow: 0 2px 12px rgba(39,54,86,.12); }
+  .s-top { display: flex; align-items: center; gap: 12px; }
+  .s-ico { width: 44px; height: 44px; border-radius: 10px; background: var(--c); display: grid; place-items: center; flex: none; }
+  .s-ico svg { width: 24px; height: 24px; }
+  .s-name { font-size: 16px; font-weight: 600; line-height: 1.25; }
+  .s-count { font-size: 13px; color: var(--muted); }
+  .track { height: 8px; border-radius: 4px; background: #fff; overflow: hidden; }
+  .subject[aria-pressed="true"] .track { background: var(--card); }
+  .track i { display: block; height: 100%; background: var(--c); border-radius: 4px; transition: width .8s cubic-bezier(.2,.7,.2,1); }
+  .s-foot { display: flex; justify-content: space-between; font-size: 13px; }
+  .s-foot b { color: var(--orange-dark); }
+
+  /* Filtres */
+  .filters { background: var(--card); border-radius: var(--radius); padding: 14px 18px; display: flex; gap: 16px 24px; flex-wrap: wrap; align-items: center; }
+  .search { position: relative; flex: 1 1 260px; min-width: 220px; }
+  .search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; }
+  .search input { width: 100%; background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 14px 10px 38px; font-size: 14px; }
+  .search input:focus-visible { outline: 0; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(233,140,8,.45); }
+  .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .group > span { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .seg { display: inline-flex; background: #fff; border-radius: 8px; padding: 3px; gap: 2px; }
+  .seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .seg button:hover { color: var(--navy); }
+  .seg button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+  select { background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 32px 8px 12px; font-size: 13px; font-weight: 600; appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M5 9l7 7 7-7' stroke='%23273656' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; background-size: 14px; }
+  .count { font-size: 14px; color: var(--muted); }
+  .reset { background: none; border: 0; font-size: 13px; font-weight: 600; color: var(--orange-dark); text-decoration: underline; padding: 4px 6px; }
+
+  /* Sections */
+  .sections { display: flex; flex-direction: column; gap: 32px; }
+  .sec-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; padding-left: 14px; border-left: 6px solid var(--c); flex-wrap: wrap; }
+  .sec-head h2 { font-size: 22px; font-weight: 600; line-height: 1.3; }
+  .sec-head .c { font-size: 14px; color: var(--muted); }
+  .sec-head .comp { margin-left: auto; font-size: 13px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .ch { background: var(--card); border-radius: var(--radius); padding: 18px 20px 18px; display: flex; flex-direction: column; gap: 10px; border-top: 5px solid var(--c); transition: box-shadow .15s, transform .15s; }
+  .ch:hover { box-shadow: 0 4px 16px rgba(39,54,86,.14); transform: translateY(-2px); }
+  .ch-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .diff { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
+  .diff .b { display: inline-flex; gap: 3px; }
+  .diff .b i { width: 14px; height: 6px; border-radius: 3px; background: #C7CFDC; }
+  .diff .b i.on { background: var(--navy); }
+  .star { background: none; border: 0; padding: 4px; border-radius: 6px; display: grid; place-items: center; }
+  .star:hover { background: #fff; }
+  .star svg { width: 22px; height: 22px; }
+  .ch h3 { font-size: 17px; font-weight: 600; line-height: 1.3; }
+  .ch p.d { font-size: 13.5px; color: var(--text); flex: 1; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { font-size: 11.5px; font-weight: 700; letter-spacing: .02em; padding: 2px 10px; border-radius: 4px; background: #fff; color: var(--navy); }
+  .tag.reco { background: var(--peach); color: var(--orange-dark); }
+  .tag.done { background: #DDF3E6; color: #14532d; }
+  .tag.prog { background: #FFE9C2; color: var(--orange-dark); }
+  .meta { display: flex; gap: 14px; font-size: 12.5px; color: var(--muted); flex-wrap: wrap; }
+  .meta span { display: inline-flex; align-items: center; gap: 5px; }
+  .meta svg { width: 14px; height: 14px; }
+  .bar { height: 6px; background: #fff; border-radius: 3px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--orange); border-radius: 3px; }
+  .ch-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 4px; }
+  .pts { font-size: 18px; font-weight: 700; color: var(--orange-dark); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13.5px; padding: 8px 18px; border-radius: 8px; border: 2px solid var(--navy); background: var(--navy); color: #fff; text-decoration: none; transition: background .15s; white-space: nowrap; }
+  .btn:hover { background: var(--navy-2); }
+  .btn.orange { background: var(--orange); border-color: var(--orange); color: var(--navy); }
+  .btn.orange:hover { background: #F5A02A; border-color: #F5A02A; }
+  .btn.line { background: transparent; color: var(--navy); }
+  .btn.line:hover { background: #fff; }
+
+  .empty { background: var(--card); border-radius: var(--radius); padding: 40px 20px; text-align: center; color: var(--muted); }
+  .empty strong { display: block; color: var(--navy); font-size: 18px; margin-bottom: 4px; }
+
+  @media (max-width: 1180px) { .subjects { grid-template-columns: repeat(2, 1fr); } .cards { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 820px) {
+    .topbar-in { padding: 0 16px; grid-template-columns: auto 1fr; height: 64px; } .menu { display: none; }
+    main { padding: 20px 16px 48px; } .subjects, .cards { grid-template-columns: 1fr; }
+    .sec-head .comp { margin-left: 0; width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="logo" href="accueil.html" aria-label="LevelUPJV, accueil">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#002E5A" d="M12 3L1 9l11 6 9-4.9V17h2V9L12 3z"/><path fill="#002E5A" d="M5 13.2v4L12 21l7-3.8v-4L12 17z"/></svg>
+      <span class="wordmark">Level<b>UP</b>JV</span>
+    </a>
+    <nav aria-label="Navigation principale">
+      <ul class="menu">
+        <li><a href="tableau-de-bord.html">Tableau de bord</a></li>
+        <li><a href="defis.html" aria-current="page">Défis</a></li>
+        <li><a href="classement.html">Classement</a></li>
+        <li><a href="lobby-duel.html">Duels</a></li>
+        <li><a href="profil.html">Mon profil</a></li>
+      </ul>
+    </nav>
+    <div class="tools">
+      <span class="pts-chip">2 450 pts</span>
+      <span class="avatar-s"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.5" fill="#fff"/><path d="M3.5 21c0-4.6 3.8-7.2 8.5-7.2s8.5 2.6 8.5 7.2z" fill="#fff"/></svg></span>
+    </div>
+  </div>
+</header>
+
+<main id="contenu">
+  <div class="crumb"><span>Accueil</span><span>›</span><strong>Défis</strong></div>
+
+  <div class="head">
+    <div>
+      <h1>Défis</h1>
+      <p class="serif">Choisis une matière, un niveau, et gagne des points à chaque réussite.</p>
+    </div>
+    <div class="global" id="global" aria-label="Résumé global"></div>
+  </div>
+
+  <section aria-label="Matières"><div class="subjects" id="subjects"></div></section>
+
+  <section class="filters" aria-label="Filtres">
+    <div class="search">
+      <label class="sr-only" for="q">Rechercher un défi</label>
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="#3A3A3A" stroke-width="2"/><path d="M15.5 15.5L21 21" stroke="#3A3A3A" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="q" type="search" placeholder="Rechercher un défi ou une notion">
+    </div>
+    <div class="group"><span id="l-diff">Difficulté</span>
+      <div class="seg" role="group" aria-labelledby="l-diff" id="f-diff">
+        <button aria-pressed="true" data-v="0">Toutes</button><button aria-pressed="false" data-v="1">Facile</button><button aria-pressed="false" data-v="2">Moyen</button><button aria-pressed="false" data-v="3">Difficile</button>
+      </div></div>
+    <div class="group"><span id="l-stat">Statut</span>
+      <div class="seg" role="group" aria-labelledby="l-stat" id="f-stat">
+        <button aria-pressed="true" data-v="all">Tous</button><button aria-pressed="false" data-v="todo">À faire</button><button aria-pressed="false" data-v="prog">En cours</button><button aria-pressed="false" data-v="done">Réussis</button>
+      </div></div>
+    <div class="group"><label for="sort" id="l-sort" style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Trier</label>
+      <select id="sort"><option value="reco">Recommandés</option><option value="pts">Plus de points</option><option value="diff">Plus faciles d’abord</option><option value="time">Plus courts d’abord</option></select></div>
+    <div class="group" style="margin-left:auto"><span class="count" id="count" aria-live="polite"></span><button class="reset" id="reset" hidden>Réinitialiser</button></div>
+  </section>
+
+  <div class="sections" id="sections"></div>
+</main>
+
+<script>
+  // ---------- Données fictives ----------
+  const I = {
+    db:   '<path d="M5 6c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3zM5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" fill="none" stroke="#fff" stroke-width="1.8"/>',
+    algo: '<path d="M8 6L3 12l5 6M16 6l5 6-5 6M14 4l-4 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+    web:  '<rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M3 9h18" stroke="#fff" stroke-width="1.8"/>',
+    net:  '<circle cx="12" cy="5" r="2.5" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="5" cy="19" r="2.5" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="19" cy="19" r="2.5" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M12 7.5v4M12 11.5L6 17M12 11.5l6 5.5" stroke="#fff" stroke-width="1.8" fill="none"/>'
+  };
+  const SUBJECTS = [
+    { k: 'db',   n: 'Bases de données',   c: '#0094CC', comp: 'Compétence BUT : Gérer les données de l’information' },
+    { k: 'algo', n: 'Algorithmique',      c: '#E06C1B', comp: 'Compétence BUT : Réaliser un développement d’application' },
+    { k: 'web',  n: 'Développement web',  c: '#273656', comp: 'Compétence BUT : Réaliser, Optimiser' },
+    { k: 'net',  n: 'Réseaux & systèmes', c: '#CC3340', comp: 'Compétence BUT : Administrer les systèmes d’information' },
+  ];
+  // s: todo | prog | done ; d: difficulté 1-3 ; p: points ; min: durée ; t: nb de tests
+  const D = [
+    { k:'db', t:'Sélections simples',          x:'SELECT, WHERE et ORDER BY sur une table.',                 d:1, p:30,  min:10, tests:5, s:'done', done:5 },
+    { k:'db', t:'Jointures et sous-requêtes',  x:'Croise plusieurs tables et filtre avec une sous-requête.', d:2, p:80,  min:25, tests:5, s:'prog', done:3 },
+    { k:'db', t:'Agrégats et GROUP BY',        x:'COUNT, SUM, AVG et regroupements.',                        d:2, p:60,  min:20, tests:5, s:'todo' },
+    { k:'db', t:'Requêtes imbriquées',         x:'Combine IN, EXISTS et sous-requêtes corrélées.',           d:2, p:70,  min:25, tests:5, s:'todo', reco:1 },
+    { k:'db', t:'Modélisation MCD',            x:'Passe d’un énoncé à un schéma relationnel.',               d:2, p:70,  min:30, tests:4, s:'todo' },
+    { k:'db', t:'Vues et index',               x:'Optimise l’accès aux données avec des vues et des index.', d:3, p:100, min:30, tests:5, s:'todo' },
+
+    { k:'algo', t:'Tri d’un tableau',          x:'Écris un tri sans utiliser sorted() ni sort().',           d:1, p:40,  min:15, tests:5, s:'todo' },
+    { k:'algo', t:'Recherche dichotomique',    x:'Trouve un élément dans une liste triée en O(log n).',      d:2, p:50,  min:20, tests:5, s:'todo' },
+    { k:'algo', t:'Récursivité : la factorielle', x:'Résous un problème en le réduisant à lui-même.',        d:1, p:40,  min:15, tests:4, s:'todo', reco:1 },
+    { k:'algo', t:'Piles et files',            x:'Implémente et utilise les structures LIFO et FIFO.',       d:2, p:60,  min:25, tests:5, s:'todo' },
+    { k:'algo', t:'Complexité algorithmique',  x:'Compare des algorithmes et justifie leur coût.',           d:3, p:90,  min:30, tests:4, s:'todo' },
+    { k:'algo', t:'Graphes : parcours',        x:'Parcours en largeur et en profondeur.',                    d:3, p:120, min:40, tests:6, s:'todo' },
+
+    { k:'web', t:'Formulaire responsive',      x:'Construis un formulaire accessible qui s’adapte à tous les écrans.', d:3, p:120, min:45, tests:4, s:'prog', done:1 },
+    { k:'web', t:'Flexbox et Grid',            x:'Compose des mises en page avec Flexbox et Grid.',          d:2, p:50,  min:25, tests:4, s:'done', done:4 },
+    { k:'web', t:'DOM et événements',          x:'Réagis aux actions de l’utilisateur en JavaScript.',       d:2, p:70,  min:30, tests:5, s:'todo' },
+    { k:'web', t:'API REST',                   x:'Consomme et expose une API JSON.',                         d:3, p:110, min:40, tests:5, s:'todo' },
+    { k:'web', t:'Sessions PHP',               x:'Gère une connexion avec les sessions et les cookies.',     d:2, p:90,  min:35, tests:5, s:'todo' },
+    { k:'web', t:'Accessibilité',              x:'Corrige une page pour la rendre utilisable par tous.',     d:1, p:60,  min:20, tests:4, s:'todo' },
+
+    { k:'net', t:'Commandes Linux',            x:'Navigue, cherche et manipule des fichiers en terminal.',   d:1, p:30,  min:15, tests:6, s:'done', done:6 },
+    { k:'net', t:'Adressage IPv4',             x:'Classes, masques et adresses réseau.',                     d:1, p:50,  min:20, tests:5, s:'todo' },
+    { k:'net', t:'Scripts Bash',               x:'Automatise une tâche avec variables, boucles et conditions.', d:2, p:80, min:30, tests:5, s:'todo' },
+    { k:'net', t:'Droits et permissions',      x:'Lis et modifie les droits chmod et chown.',                d:2, p:60,  min:20, tests:5, s:'todo' },
+    { k:'net', t:'Sous-réseaux IPv4',          x:'Découpe un réseau en sous-réseaux.',                       d:2, p:100, min:35, tests:6, s:'todo', reco:1 },
+    { k:'net', t:'Docker : premiers pas',      x:'Lance et configure un conteneur.',                         d:3, p:110, min:40, tests:5, s:'todo' },
+  ];
+  D.forEach((x, i) => { x.id = i; x.s === 'done' && (x.done = x.tests); });
+  const DIFF = ['', 'Facile', 'Moyen', 'Difficile'];
+  const BTN = { todo: ['Commencer', ''], prog: ['Reprendre', 'orange'], done: ['Revoir', 'line'] };
+
+  // ---------- État ----------
+  const state = { subject: 'all', diff: 0, stat: 'all', q: '', sort: 'reco', favs: new Set([1, 6, 12]) };
+  try { const f = JSON.parse(localStorage.getItem('lvup-favs-defis') || 'null'); if (Array.isArray(f)) state.favs = new Set(f); } catch (e) {}
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+  const STAR = on => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="${on ? '#273656' : 'none'}" stroke="#273656" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+  const CLOCK = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const TEST = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  // ---------- Matières + résumé ----------
+  function renderSubjects() {
+    $('#subjects').innerHTML = SUBJECTS.map(s => {
+      const all = D.filter(x => x.k === s.k), done = all.filter(x => x.s === 'done');
+      const pts = done.reduce((a, x) => a + x.p, 0), pct = Math.round(done.length / all.length * 100);
+      return `<button class="subject" style="--c:${s.c}" data-s="${s.k}" aria-pressed="${state.subject === s.k}" aria-label="${s.n} : ${done.length} défis réussis sur ${all.length}">
+        <span class="s-top"><span class="s-ico"><svg viewBox="0 0 24 24" aria-hidden="true">${I[s.k]}</svg></span>
+          <span><span class="s-name">${s.n}</span><br><span class="s-count">${done.length} / ${all.length} réussis</span></span></span>
+        <span class="track"><i style="width:${pct}%"></i></span>
+        <span class="s-foot"><span>${pct} %</span><b>${pts} pts gagnés</b></span></button>`;
+    }).join('');
+    const dn = D.filter(x => x.s === 'done'), pr = D.filter(x => x.s === 'prog');
+    $('#global').innerHTML = `<span class="pill"><strong>${dn.length}</strong>réussis sur ${D.length}</span><span class="pill"><strong>${pr.length}</strong>en cours</span><span class="pill"><strong>${dn.reduce((a, x) => a + x.p, 0)}</strong>pts gagnés</span>`;
+  }
+
+  // ---------- Liste ----------
+  function filtered() {
+    const q = norm(state.q.trim());
+    let list = D.filter(x =>
+      (state.subject === 'all' || x.k === state.subject) &&
+      (!state.diff || x.d === state.diff) &&
+      (state.stat === 'all' || x.s === state.stat) &&
+      (!q || norm(x.t + ' ' + x.x).includes(q)));
+    const rank = x => ({ prog: 0, todo: 1, done: 2 }[x.s]);
+    const cmp = {
+      reco: (a, b) => (b.reco || 0) - (a.reco || 0) || rank(a) - rank(b) || a.id - b.id,
+      pts:  (a, b) => b.p - a.p,
+      diff: (a, b) => a.d - b.d || a.id - b.id,
+      time: (a, b) => a.min - b.min || a.id - b.id,
+    }[state.sort];
+    return list.sort(cmp);
+  }
+
+  function card(x) {
+    const s = SUBJECTS.find(z => z.k === x.k), fav = state.favs.has(x.id);
+    const [label, cls] = BTN[x.s];
+    const chip = x.s === 'done' ? '<span class="tag done">Réussi</span>' : x.s === 'prog' ? `<span class="tag prog">En cours · ${x.done}/${x.tests}</span>` : '';
+    const bars = [1, 2, 3].map(i => `<i class="${i <= x.d ? 'on' : ''}"></i>`).join('');
+    return `<article class="ch" style="--c:${s.c}">
+      <div class="ch-top">
+        <span class="diff"><span class="b" aria-hidden="true">${bars}</span>${DIFF[x.d]}</span>
+        <button class="star" data-fav="${x.id}" aria-pressed="${fav}" aria-label="${fav ? 'Retirer' : 'Ajouter'} « ${x.t} » ${fav ? 'des' : 'aux'} favoris">${STAR(fav)}</button>
+      </div>
+      <h3>${x.t}</h3>
+      <p class="d">${x.x}</p>
+      <div class="tags">${x.reco ? '<span class="tag reco">Recommandé</span>' : ''}${chip}</div>
+      ${x.s === 'prog' ? `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${x.tests}" aria-valuenow="${x.done}" aria-label="Tests réussis"><i style="width:${x.done / x.tests * 100}%"></i></div>` : ''}
+      <div class="meta"><span>${CLOCK}${x.min} min</span><span>${TEST}${x.tests} tests</span></div>
+      <div class="ch-foot"><span class="pts">+${x.p} pts</span><a class="btn ${cls}" href="defi.html" aria-label="${label} le défi ${x.t}">${label}</a></div>
+    </article>`;
+  }
+
+  function render() {
+    const list = filtered();
+    const groups = SUBJECTS.map(s => ({ s, items: list.filter(x => x.k === s.k) })).filter(g => g.items.length);
+    $('#sections').innerHTML = groups.length ? groups.map(({ s, items }) => {
+      const total = D.filter(x => x.k === s.k).length;
+      return `<section aria-labelledby="h-${s.k}" style="--c:${s.c}">
+        <div class="sec-head"><h2 id="h-${s.k}">${s.n}</h2><span class="c">${items.length} défi${items.length > 1 ? 's' : ''}${items.length < total ? ` sur ${total}` : ''}</span><span class="comp serif">${s.comp}</span></div>
+        <div class="cards">${items.map(card).join('')}</div></section>`;
+    }).join('') : `<div class="empty"><strong>Aucun défi ne correspond</strong>Essaie un autre mot-clé ou retire un filtre.</div>`;
+    $('#count').textContent = `${list.length} défi${list.length > 1 ? 's' : ''}`;
+    const dirty = state.subject !== 'all' || state.diff || state.stat !== 'all' || state.q || state.sort !== 'reco';
+    $('#reset').hidden = !dirty;
+    $$('.subject').forEach(b => b.setAttribute('aria-pressed', state.subject === b.dataset.s));
+  }
+
+  // ---------- Événements ----------
+  $('#subjects').addEventListener('click', e => {
+    const b = e.target.closest('.subject'); if (!b) return;
+    state.subject = state.subject === b.dataset.s ? 'all' : b.dataset.s; render();
+  });
+  const seg = (id, key, num) => $(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    state[key] = num ? +b.dataset.v : b.dataset.v;
+    $$('button', $(id)).forEach(x => x.setAttribute('aria-pressed', x === b)); render();
+  });
+  seg('#f-diff', 'diff', true); seg('#f-stat', 'stat', false);
+  $('#q').addEventListener('input', e => { state.q = e.target.value; render(); });
+  $('#sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
+  $('#sections').addEventListener('click', e => {
+    const b = e.target.closest('[data-fav]'); if (!b) return;
+    const id = +b.dataset.fav; state.favs.has(id) ? state.favs.delete(id) : state.favs.add(id);
+    try { localStorage.setItem('lvup-favs-defis', JSON.stringify([...state.favs])); } catch (e) {}
+    render(); const again = $(`[data-fav="${id}"]`); again && again.focus();
+  });
+  $('#reset').addEventListener('click', () => {
+    Object.assign(state, { subject: 'all', diff: 0, stat: 'all', q: '', sort: 'reco' });
+    $('#q').value = ''; $('#sort').value = 'reco';
+    $$('#f-diff button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === '0'));
+    $$('#f-stat button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === 'all'));
+    render();
+  });
+
+  renderSubjects(); render();
+</script>
+</body>
+</html>
