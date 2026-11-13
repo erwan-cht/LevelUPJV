@@ -1,0 +1,331 @@
+// Schéma de la base LevelUPJV.
+// Modèle issu du cahier des charges (§9) et des types du front (front/src/types.ts).
+// Après modification : npm run db:migrate -- --name <description>
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────── Énumérations ─────────────
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum Difficulty {
+  EASY // Facile
+  MEDIUM // Moyen
+  HARD // Difficile
+}
+
+enum ChallengeType {
+  SQL
+  ALGO
+  WEB
+  NETWORK
+}
+
+enum Subject {
+  DATABASES // Bases de données
+  ALGORITHMICS // Algorithmique
+  WEB_DEV // Développement web
+  NETWORKS_SYSTEMS // Réseaux & systèmes
+}
+
+enum AttemptStatus {
+  PASSED
+  FAILED
+  ERROR // erreur de syntaxe, timeout…
+}
+
+enum DuelStatus {
+  PENDING // invitation envoyée
+  ACTIVE
+  FINISHED
+  DECLINED
+}
+
+enum ArenaStatus {
+  LOBBY
+  RUNNING
+  FINISHED
+}
+
+// ───────────── Utilisateurs ─────────────
+
+model Group {
+  id        Int      @id @default(autoincrement())
+  name      String // ex. "BUT 2 · Groupe 2"
+  promo     String // ex. "BUT 2"
+  teacherId Int?
+  teacher   User?    @relation("TeacherGroups", fields: [teacherId], references: [id], onDelete: SetNull)
+  members   User[]   @relation("GroupMembers")
+  createdAt DateTime @default(now())
+
+  @@unique([promo, name])
+}
+
+model User {
+  id           Int     @id @default(autoincrement())
+  email        String  @unique
+  passwordHash String
+  role         Role    @default(STUDENT)
+  firstName    String
+  lastName     String
+  pseudo       String  @unique
+  avatarUrl    String?
+  groupId      Int?
+  group        Group?  @relation("GroupMembers", fields: [groupId], references: [id], onDelete: SetNull)
+  taughtGroups Group[] @relation("TeacherGroups")
+
+  // Valeurs mises en cache (mises à jour avec PointEvent, dans une même transaction).
+  // Le niveau, la ligue et le rang se calculent à partir de xp / points : on ne les stocke pas.
+  xp            Int       @default(0)
+  points        Int       @default(0)
+  streakDays    Int       @default(0)
+  lastActiveDay DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attempts          Attempt[]
+  pointEvents       PointEvent[]
+  badges            UserBadge[]
+  hints             Hint[]
+  favorites         Favorite[]
+  createdChallenges Challenge[]    @relation("ChallengeAuthor")
+  duelsSent         Duel[]         @relation("DuelChallenger")
+  duelsReceived     Duel[]         @relation("DuelOpponent")
+  duelsWon          Duel[]         @relation("DuelWinner")
+  hostedArenas      ArenaSession[] @relation("ArenaHost")
+  arenaAnswers      ArenaAnswer[]
+
+  @@index([groupId])
+  @@index([points(sort: Desc)]) // classement : ORDER BY points DESC
+}
+
+// ───────────── Compétences du référentiel BUT ─────────────
+
+model Competence {
+  id          Int    @id @default(autoincrement())
+  name        String @unique // ex. "Gérer les données de l'information"
+  description String @default("")
+
+  challenges ChallengeCompetence[]
+}
+
+// ───────────── Défis ─────────────
+
+model Challenge {
+  id         Int           @id @default(autoincrement())
+  title      String
+  statement  String // énoncé (Markdown)
+  type       ChallengeType
+  subject    Subject
+  difficulty Difficulty
+  minutes    Int           @default(20) // durée estimée
+  basePoints Int // points de base, avant malus d'essais / d'indices
+  published  Boolean       @default(false)
+  authorId   Int?
+  author     User?         @relation("ChallengeAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  // Défis SQL : schéma + données chargés dans une base jetable, requête de référence.
+  setupSql    String? // CREATE TABLE + INSERT
+  solutionSql String? // solution de référence : ne jamais l'envoyer au front ni à l'IA
+  starterCode String? // code de départ affiché dans l'éditeur
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  competences ChallengeCompetence[]
+  tests       TestCase[]
+  attempts    Attempt[]
+  favorites   Favorite[]
+  duels       Duel[]
+  arenaItems  ArenaChallenge[]
+
+  @@index([subject, difficulty])
+  @@index([published])
+}
+
+model ChallengeCompetence {
+  challengeId  Int
+  competenceId Int
+  challenge    Challenge  @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  competence   Competence @relation(fields: [competenceId], references: [id], onDelete: Cascade)
+
+  @@id([challengeId, competenceId])
+}
+
+// Jeux de tests d'un défi (algo / web) ou jeux de données alternatifs (SQL).
+model TestCase {
+  id          Int       @id @default(autoincrement())
+  challengeId Int
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  label       String // "Retourne les clients de Paris"
+  input       String    @default("")
+  expected    String // sortie attendue (JSON ou texte)
+  hidden      Boolean   @default(false) // test caché, non affiché à l'étudiant
+  position    Int       @default(0)
+
+  @@index([challengeId])
+}
+
+model Favorite {
+  userId      Int
+  challengeId Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@id([userId, challengeId])
+}
+
+// ───────────── Tentatives et indices ─────────────
+
+model Attempt {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  challengeId Int
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge   Challenge     @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  answer      String // requête SQL ou code soumis
+  status      AttemptStatus
+  testsPassed Int           @default(0)
+  testsTotal  Int           @default(0)
+  feedback    Json? // écart constaté : lignes / colonnes en trop ou manquantes
+  durationMs  Int? // temps d'exécution
+  hintsUsed   Int           @default(0)
+  createdAt   DateTime      @default(now())
+
+  @@index([userId, challengeId])
+  @@index([challengeId, status])
+  @@index([userId, createdAt])
+}
+
+// Journal des échanges avec l'IA (exigence F-43).
+model Hint {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  challengeId Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level       Int      @default(1) // indice progressif : 1, 2, 3…
+  prompt      String
+  response    String
+  cost        Int      @default(0) // points retirés
+  createdAt   DateTime @default(now())
+
+  @@index([userId, challengeId])
+}
+
+// ───────────── Gamification ─────────────
+
+// Journal des gains de points / XP : source de vérité pour « Mon activité »,
+// « +60 aujourd'hui », les classements par période, et l'évolution du rang.
+model PointEvent {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  points    Int // peut être négatif (indice acheté)
+  xp        Int      @default(0)
+  reason    String // "challenge:12", "duel:3", "badge:sql-master", "objective:…"
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model Badge {
+  id           Int    @id @default(autoincrement())
+  slug         String @unique // "sql-master"
+  name         String // "SQL Master"
+  description  String
+  rewardPoints Int    @default(0)
+  variant      String @default("navy") // couleur d'affichage : navy / orange
+
+  users UserBadge[]
+}
+
+model UserBadge {
+  userId   Int
+  badgeId  Int
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt DateTime @default(now())
+  claimed  Boolean  @default(false) // récompense récupérée
+
+  @@id([userId, badgeId])
+}
+
+// ───────────── Duels ─────────────
+
+model Duel {
+  id           Int        @id @default(autoincrement())
+  challengerId Int
+  opponentId   Int
+  challengeId  Int
+  challenger   User       @relation("DuelChallenger", fields: [challengerId], references: [id], onDelete: Cascade)
+  opponent     User       @relation("DuelOpponent", fields: [opponentId], references: [id], onDelete: Cascade)
+  challenge    Challenge  @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  status       DuelStatus @default(PENDING)
+  winnerId     Int?
+  winner       User?      @relation("DuelWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  stakePoints  Int        @default(0)
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([challengerId])
+  @@index([opponentId])
+}
+
+// ───────────── Arène live (session enseignant, piste W-02) ─────────────
+
+model ArenaSession {
+  id         Int         @id @default(autoincrement())
+  hostId     Int
+  host       User        @relation("ArenaHost", fields: [hostId], references: [id], onDelete: Cascade)
+  joinCode   String      @unique // code court / QR code
+  status     ArenaStatus @default(LOBBY)
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime    @default(now())
+
+  challenges ArenaChallenge[]
+  answers    ArenaAnswer[]
+}
+
+model ArenaChallenge {
+  arenaId     Int
+  challengeId Int
+  position    Int
+  arena       ArenaSession @relation(fields: [arenaId], references: [id], onDelete: Cascade)
+  challenge   Challenge    @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@id([arenaId, challengeId])
+}
+
+// Une réponse d'étudiant en arène. `failedStep` alimente l'analyse de salle (W-03).
+model ArenaAnswer {
+  id          Int          @id @default(autoincrement())
+  arenaId     Int
+  userId      Int
+  challengeId Int
+  arena       ArenaSession @relation(fields: [arenaId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answer      String
+  correct     Boolean
+  failedStep  String? // "JOIN", "WHERE", "GROUP BY"…
+  elapsedMs   Int
+  createdAt   DateTime     @default(now())
+
+  @@index([arenaId, challengeId])
+  @@index([arenaId, userId])
+}
