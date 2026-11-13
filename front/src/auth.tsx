@@ -1,6 +1,9 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-export type Role = 'etudiant' | 'enseignant';
+export type Role = 'etudiant' | 'enseignant' | 'admin';
+
+/** Page d'accueil de chaque rôle après connexion. */
+export const homeFor = (role: Role) => (role === 'enseignant' ? '/enseignant' : role === 'admin' ? '/admin' : '/');
 
 interface AuthState {
   role: Role | null;
@@ -14,7 +17,7 @@ const STORAGE_KEY = 'levelupjv-role';
 function readRole(): Role | null {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
-    return v === 'etudiant' || v === 'enseignant' ? v : null;
+    return v === 'etudiant' || v === 'enseignant' || v === 'admin' ? v : null;
   } catch {
     return null;
   }

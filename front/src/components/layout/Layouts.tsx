@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../../auth';
+import { homeFor, useAuth } from '../../auth';
+import { AdminProvider } from '../../pages/admin/store';
 import { currentUser } from '../../data/mock';
 import { teacher } from '../../data/teacher';
 import Header, { studentNav, type NavItem } from '../Header';
@@ -10,7 +11,7 @@ import Footer from './Footer';
 export function StudentLayout() {
   const { role } = useAuth();
   if (!role) return <Navigate to="/connexion" replace />;
-  if (role === 'enseignant') return <Navigate to="/enseignant" replace />;
+  if (role !== 'etudiant') return <Navigate to={homeFor(role)} replace />;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -34,7 +35,7 @@ const teacherNav: NavItem[] = [
 export function TeacherLayout() {
   const { role } = useAuth();
   if (!role) return <Navigate to="/connexion" replace />;
-  if (role === 'etudiant') return <Navigate to="/" replace />;
+  if (role !== 'enseignant') return <Navigate to={homeFor(role)} replace />;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -44,5 +45,31 @@ export function TeacherLayout() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+const adminNav: NavItem[] = [
+  { label: 'Comptes', to: '/admin', end: true },
+  { label: 'Promotions', to: '/admin/promotions' },
+  { label: 'Contenus', to: '/admin/contenus' },
+  { label: 'Référentiel', to: '/admin/referentiel' },
+];
+
+/** Espace administrateur : gestion des comptes, promotions, contenus et référentiel. */
+export function AdminLayout() {
+  const { role } = useAuth();
+  if (!role) return <Navigate to="/connexion" replace />;
+  if (role !== 'admin') return <Navigate to={homeFor(role)} replace />;
+
+  return (
+    <AdminProvider>
+      <div className="flex min-h-screen flex-col">
+        <Header links={adminNav} chip="Service DSI" badge="Admin" home="/admin" />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+          <Outlet />
+        </main>
+        <Footer />
+      </div>
+    </AdminProvider>
   );
 }

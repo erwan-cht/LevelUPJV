@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { CheckCircle2, Eye, EyeOff, Swords, Trophy, Zap } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useAuth, type Role } from '../auth';
+import { homeFor, useAuth, type Role } from '../auth';
 import Logo from '../components/layout/Logo';
 import { buttonBrand, buttonOutline, inputClass } from '../components/ui';
 
@@ -21,7 +21,7 @@ export default function Connexion() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
 
-  if (current) return <Navigate to={current === 'enseignant' ? '/enseignant' : '/'} replace />;
+  if (current) return <Navigate to={homeFor(current)} replace />;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -30,12 +30,12 @@ export default function Connexion() {
       return;
     }
     login(role);
-    navigate(role === 'enseignant' ? '/enseignant' : '/', { replace: true });
+    navigate(homeFor(role), { replace: true });
   };
 
   const quickLogin = () => {
     login(role);
-    navigate(role === 'enseignant' ? '/enseignant' : '/', { replace: true });
+    navigate(homeFor(role), { replace: true });
   };
 
   return (
@@ -84,7 +84,7 @@ export default function Connexion() {
           </p>
 
           <div className="mt-5 flex rounded-md bg-white p-0.5 text-sm" role="tablist" aria-label="Type de compte">
-            {(['etudiant', 'enseignant'] as Role[]).map((r) => (
+            {(['etudiant', 'enseignant', 'admin'] as Role[]).map((r) => (
               <button
                 key={r}
                 role="tab"
@@ -94,7 +94,7 @@ export default function Connexion() {
                   role === r ? 'bg-navy text-white' : 'hover:bg-slate-100'
                 }`}
               >
-                {r === 'etudiant' ? 'Étudiant' : 'Enseignant'}
+                {r === 'etudiant' ? 'Étudiant' : r === 'enseignant' ? 'Enseignant' : 'Admin'}
               </button>
             ))}
           </div>
@@ -107,7 +107,7 @@ export default function Connexion() {
                 value={identifiant}
                 onChange={(e) => setIdentifiant(e.target.value)}
                 autoComplete="username"
-                placeholder={role === 'etudiant' ? 'oscar.lescot' : 'm.dupuis'}
+                placeholder={role === 'etudiant' ? 'oscar.lescot' : role === 'enseignant' ? 'm.dupuis' : 'admin.dsi'}
               />
             </label>
 
