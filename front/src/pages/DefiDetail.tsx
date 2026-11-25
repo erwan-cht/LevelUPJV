@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Lock, Star, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Lock, Sparkles, Star, XCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { api, useApi } from '../api';
 import PageState from '../components/PageState';
+import SqlVisualizer, { type VizResult } from '../components/SqlVisualizer';
 import { subjectStyles } from '../subjects';
 import { useMe } from '../me';
 import type { Subject } from '../types';
@@ -82,6 +83,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
   const [solved, setSolved] = useState(challenge.solved);
   const [seconds, setSeconds] = useState(0);
   const [problem, setProblem] = useState('');
+  const [viz, setViz] = useState<VizResult | null>(null);
 
   useEffect(() => {
     const t = window.setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -96,6 +98,18 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
     try {
       const result = await api<Table & { error?: string }>(`/challenges/${challenge.id}/run`, { body: { query } });
       setOutcome({ kind: 'run', result });
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const visualize = async () => {
+    setBusy(true);
+    setProblem('');
+    try {
+      setViz(await api<VizResult>(`/challenges/${challenge.id}/explain`, { body: { query } }));
     } catch (e) {
       fail(e);
     } finally {
@@ -234,6 +248,9 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
                 <button onClick={run} disabled={busy || !challenge.gradable} className={buttonOutline}>
                   Exécuter
                 </button>
+                <button onClick={visualize} disabled={busy || !challenge.gradable} className={buttonOutline}>
+                  <Sparkles className="h-4 w-4" /> Visualiser
+                </button>
                 <button onClick={validate} disabled={busy || !challenge.gradable} className={buttonBrand}>
                   Valider ma réponse
                 </button>
@@ -293,6 +310,8 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
               )}
             </div>
           </section>
+
+          {viz && <SqlVisualizer result={viz} onClose={() => setViz(null)} />}
         </div>
       </div>
 

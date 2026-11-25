@@ -13,6 +13,7 @@ import {
   subjectLabel,
 } from './format.js';
 import { adminRouter } from './admin.js';
+import { explainAttempt } from './sqlsteps.js';
 import { duelsRouter } from './duels.js';
 import { profileRouter } from './profile.js';
 import { describeTables, judge, runQuery } from './sql.js';
@@ -287,6 +288,28 @@ api.post('/challenges/:id/run', requireAuth('STUDENT'), async (req, res) => {
   }
   const out = runQuery(c.setupSql, String(req.body?.query ?? ''));
   res.json(out);
+});
+
+/** Visualisation pas à pas de la requête (W-01) : aucune tentative n'est enregistrée, aucun point n'est en jeu. */
+api.post('/challenges/:id/explain', requireAuth('STUDENT'), async (req, res) => {
+  const id = ID(req.params.id);
+  const c = id ? await prisma.challenge.findFirst({ where: { id, status: 'PUBLISHED' } }) : null;
+  if (!c?.setupSql) {
+    res.status(400).json({ error: 'Ce défi ne s’exécute pas dans le navigateur.' });
+    return;
+  }
+  const query = String(req.body?.query ?? '');
+  if (!query.trim()) {
+    res.status(400).json({ error: 'La requête est vide.' });
+    return;
+  }
+  // Même garde-fou que « Exécuter » : une seule requête de lecture.
+  const q = query.trim().replace(/;+\s*$/, '');
+  if (q.includes(';') || !/^(select|with)\b/i.test(q)) {
+    res.status(400).json({ error: 'Seules les requêtes SELECT (une seule à la fois) sont autorisées.' });
+    return;
+  }
+  res.json(explainAttempt(c.setupSql, c.solutionSql, q));
 });
 
 /** Valide la réponse : correction automatique, tentative enregistrée, points au premier succès. */
