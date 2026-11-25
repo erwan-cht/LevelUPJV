@@ -43,3 +43,78 @@ test('sans clé API : message construit, et saut vers la bonne étape', async ()
     if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved;
   }
 });
+
+// ───────────── Fournisseur Gemini (faux fetch : aucune clé ni réseau nécessaires) ─────────────
+
+async function withGemini<T>(fake: typeof fetch, run: () => Promise<T>): Promise<T> {
+  const saved = { fetch: globalThis.fetch, key: process.env.GEMINI_API_KEY, anthropic: process.env.ANTHROPIC_API_KEY, provider: process.env.TUTOR_PROVIDER };
+  globalThis.fetch = fake;
+  process.env.GEMINI_API_KEY = 'cle-de-test';
+  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.TUTOR_PROVIDER;
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = saved.fetch;
+    for (const [k, v] of [['GEMINI_API_KEY', saved.key], ['ANTHROPIC_API_KEY', saved.anthropic], ['TUTOR_PROVIDER', saved.provider]] as const) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+}
+
+test('Gemini : requête bien formée, clé dans l’en-tête, rien de la solution', async () => {
+  let url = '';
+  let headers: Record<string, string> = {};
+  let body = '';
+  const fake = (async (input: string | URL | Request, init?: RequestInit) => {
+    url = String(input);
+    headers = init?.headers as Record<string, string>;
+    body = String(init?.body);
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'Regarde ton GROUP BY : que devrait-il rester ?' }] } }] }), { status: 200 });
+  }) as typeof fetch;
+
+  const r = explainAttempt(SHOP, SOLUTION, WRONG);
+  const t = await withGemini(fake, () => tutor(STATEMENT, WRONG, r));
+
+  assert.ok(t);
+  assert.equal(t.source, 'ai');
+  assert.equal(t.text, 'Regarde ton GROUP BY : que devrait-il rester ?');
+  assert.equal(t.stepIndex, r.divergeAt);
+  assert.match(url, /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/.+:generateContent$/);
+  assert.ok(!url.includes('cle-de-test'), 'la clé ne doit pas être dans l’URL');
+  assert.equal(headers['x-goog-api-key'], 'cle-de-test');
+  assert.ok(!body.includes('> 80') && !body.includes('99.9'), 'la solution ne doit pas partir chez le fournisseur');
+  assert.ok(body.includes('requete_etudiant'));
+});
+
+test('Gemini : erreur du fournisseur → conseil construit sans IA', async () => {
+  const quiet = console.error;
+  console.error = () => {};
+  try {
+    const fake = (async () => new Response('quota dépassé', { status: 429 })) as typeof fetch;
+    const r = explainAttempt(SHOP, SOLUTION, WRONG);
+    const t = await withGemini(fake, () => tutor(STATEMENT, WRONG, r));
+    assert.equal(t?.source, 'rules');
+    assert.equal(t?.stepIndex, r.divergeAt);
+  } finally {
+    console.error = quiet;
+  }
+});
+
+test('TUTOR_PROVIDER=none : jamais d’appel réseau', async () => {
+  let called = false;
+  const fake = (async () => {
+    called = true;
+    return new Response('{}');
+  }) as typeof fetch;
+  const r = explainAttempt(SHOP, SOLUTION, WRONG);
+  const saved = process.env.TUTOR_PROVIDER;
+  const t = await withGemini(fake, async () => {
+    process.env.TUTOR_PROVIDER = 'none';
+    return tutor(STATEMENT, WRONG, r);
+  });
+  if (saved === undefined) delete process.env.TUTOR_PROVIDER;
+  assert.equal(called, false);
+  assert.equal(t?.source, 'rules');
+});
