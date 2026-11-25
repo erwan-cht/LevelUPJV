@@ -14,6 +14,7 @@ import {
 } from './format.js';
 import { adminRouter } from './admin.js';
 import { explainAttempt } from './sqlsteps.js';
+import { tutor } from './tutor.js';
 import { duelsRouter } from './duels.js';
 import { profileRouter } from './profile.js';
 import { describeTables, judge, runQuery } from './sql.js';
@@ -324,6 +325,16 @@ api.post('/challenges/:id/run', requireAuth('STUDENT'), async (req, res) => {
   res.json(out);
 });
 
+/** Une seule requête de lecture, comme pour « Exécuter » ; renvoie la requête nettoyée, ou un message d'erreur. */
+function readOnly(raw: unknown): { query: string } | { error: string } {
+  const query = String(raw ?? '').trim().replace(/;+\s*$/, '');
+  if (!query) return { error: 'La requête est vide.' };
+  if (query.includes(';') || !/^(select|with)\b/i.test(query)) {
+    return { error: 'Seules les requêtes SELECT (une seule à la fois) sont autorisées.' };
+  }
+  return { query };
+}
+
 /** Visualisation pas à pas de la requête (W-01) : aucune tentative n'est enregistrée, aucun point n'est en jeu. */
 api.post('/challenges/:id/explain', requireAuth('STUDENT'), async (req, res) => {
   const id = ID(req.params.id);
@@ -332,18 +343,54 @@ api.post('/challenges/:id/explain', requireAuth('STUDENT'), async (req, res) => 
     res.status(400).json({ error: 'Ce défi ne s’exécute pas dans le navigateur.' });
     return;
   }
-  const query = String(req.body?.query ?? '');
-  if (!query.trim()) {
-    res.status(400).json({ error: 'La requête est vide.' });
+  const q = readOnly(req.body?.query);
+  if ('error' in q) {
+    res.status(400).json({ error: q.error });
     return;
   }
-  // Même garde-fou que « Exécuter » : une seule requête de lecture.
-  const q = query.trim().replace(/;+\s*$/, '');
-  if (q.includes(';') || !/^(select|with)\b/i.test(q)) {
-    res.status(400).json({ error: 'Seules les requêtes SELECT (une seule à la fois) sont autorisées.' });
+  res.json(explainAttempt(c.setupSql, c.solutionSql, q.query));
+});
+
+const TUTOR_PER_HOUR = 5;
+
+/**
+ * Tuteur IA (W-05) : repère l'étape fautive, explique sans donner la réponse, et indique à la visualisation
+ * où sauter. Chaque échange est journalisé (Hint, niveau 0, sans coût en points) et limité par élève et par défi.
+ */
+api.post('/challenges/:id/tutor', requireAuth('STUDENT'), async (req, res) => {
+  const id = ID(req.params.id);
+  const userId = req.auth!.sub;
+  const c = id ? await prisma.challenge.findFirst({ where: { id, status: 'PUBLISHED' } }) : null;
+  if (!c?.setupSql || !c.solutionSql) {
+    res.status(400).json({ error: 'Ce défi n’a pas de tuteur.' });
     return;
   }
-  res.json(explainAttempt(c.setupSql, c.solutionSql, q));
+  const q = readOnly(req.body?.query);
+  if ('error' in q) {
+    res.status(400).json({ error: q.error });
+    return;
+  }
+
+  const recent = await prisma.hint.count({
+    where: { userId, challengeId: c.id, level: 0, createdAt: { gte: new Date(Date.now() - 3_600_000) } },
+  });
+  if (recent >= TUTOR_PER_HOUR) {
+    res.status(429).json({ error: `Tu as déjà demandé ${TUTOR_PER_HOUR} conseils sur ce défi cette heure-ci. Réessaie un peu plus tard.` });
+    return;
+  }
+
+  const result = explainAttempt(c.setupSql, c.solutionSql, q.query);
+  if (!result.supported || result.error) {
+    res.json({ ...result, tutor: null });
+    return;
+  }
+  const reply = await tutor(c.statement, q.query, result);
+  if (reply) {
+    await prisma.hint.create({
+      data: { userId, challengeId: c.id, level: 0, prompt: q.query.slice(0, 2000), response: reply.text, cost: 0 },
+    });
+  }
+  res.json({ ...result, tutor: reply });
 });
 
 /** Valide la réponse : correction automatique, tentative enregistrée, points au premier succès. */

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Flag, Pause, Play, RotateCcw, X } from 'lucide-react';
+import { Bot, ChevronLeft, ChevronRight, Flag, Pause, Play, RotateCcw, X } from 'lucide-react';
 
 // ───────────── Types (reflet de back/src/sqlsteps.ts) ─────────────
 
@@ -45,6 +45,13 @@ export interface VizResult {
   divergeAt?: number | null;
   divergeNote?: string;
   expectedStep?: VizStep;
+}
+
+export interface TutorReply {
+  text: string;
+  /** « ai » : généré par le modèle ; « rules » : conseil construit sans IA. */
+  source: 'ai' | 'rules';
+  stepIndex: number;
 }
 
 // ───────────── Briques d'affichage ─────────────
@@ -186,11 +193,23 @@ function StepView({ step, settled }: { step: VizStep; settled: boolean }) {
 
 // ───────────── Composant principal ─────────────
 
-export default function SqlVisualizer({ result, onClose }: { result: VizResult; onClose: () => void }) {
+export default function SqlVisualizer({
+  result,
+  onClose,
+  onAskTutor,
+}: {
+  result: VizResult;
+  onClose: () => void;
+  /** Demande un conseil au tuteur ; absent : pas de bouton. */
+  onAskTutor?: () => Promise<TutorReply | null>;
+}) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [settled, setSettled] = useState(false);
   const root = useRef<HTMLElement>(null);
+  const [tutor, setTutor] = useState<TutorReply | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [tutorError, setTutorError] = useState('');
   const steps = result.steps;
   const step = steps[index];
 
@@ -220,6 +239,26 @@ export default function SqlVisualizer({ result, onClose }: { result: VizResult; 
   const diverge = result.divergeAt ?? null;
   const isDiverge = diverge === index;
   const expected = useMemo(() => (isDiverge && result.expectedStep ? asTable(result.expectedStep) : null), [isDiverge, result.expectedStep]);
+
+  // Le tuteur répond, puis l'animation saute à l'étape qu'il désigne.
+  const askTutor = async () => {
+    if (!onAskTutor) return;
+    setAsking(true);
+    setTutorError('');
+    try {
+      const reply = await onAskTutor();
+      if (reply) {
+        setTutor(reply);
+        setPlaying(false);
+        setIndex(reply.stepIndex);
+      }
+    } catch (e) {
+      setTutorError(e instanceof Error ? e.message : 'Le tuteur est indisponible.');
+    } finally {
+      setAsking(false);
+    }
+  };
+  const canAsk = Boolean(onAskTutor) && result.passed === false && diverge !== null;
 
   const header = (
     <div className="flex items-center justify-between bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
@@ -267,6 +306,45 @@ export default function SqlVisualizer({ result, onClose }: { result: VizResult; 
             </li>
           ))}
         </ol>
+
+        {/* Tuteur IA */}
+        {canAsk && !tutor && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button onClick={askTutor} disabled={asking} className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
+              <Bot className="h-4 w-4" /> {asking ? 'Le tuteur regarde ta requête…' : 'Demander au tuteur'}
+            </button>
+            <span className="text-xs text-muted">Il repère l’étape qui coince, sans te donner la réponse.</span>
+          </div>
+        )}
+        {tutorError && (
+          <p role="alert" className="rounded bg-red-100 px-3 py-2 text-xs text-red-800">
+            {tutorError}
+          </p>
+        )}
+        {tutor && (
+          <div role="status" className="viz-row flex gap-3 rounded-lg border border-navy/30 bg-panel p-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy text-white">
+              <Bot className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1 text-sm">
+              <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                {tutor.source === 'ai' ? 'Tuteur IA' : 'Conseil automatique'} · étape {steps[tutor.stepIndex]?.title}
+              </p>
+              <p className="whitespace-pre-line">{tutor.text}</p>
+              {index !== tutor.stepIndex && (
+                <button
+                  onClick={() => {
+                    setPlaying(false);
+                    setIndex(tutor.stepIndex);
+                  }}
+                  className="mt-1 text-xs font-semibold text-brand hover:underline"
+                >
+                  Aller à cette étape →
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Commandes */}
         <div className="flex flex-wrap items-center gap-2">

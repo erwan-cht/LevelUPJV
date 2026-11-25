@@ -3,7 +3,7 @@ import { ArrowLeft, CheckCircle2, Lock, Sparkles, Star, XCircle } from 'lucide-r
 import { Link, useParams } from 'react-router-dom';
 import { api, useApi } from '../api';
 import PageState from '../components/PageState';
-import SqlVisualizer, { type VizResult } from '../components/SqlVisualizer';
+import SqlVisualizer, { type TutorReply, type VizResult } from '../components/SqlVisualizer';
 import { subjectStyles } from '../subjects';
 import { useMe } from '../me';
 import type { Subject } from '../types';
@@ -83,7 +83,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
   const [solved, setSolved] = useState(challenge.solved);
   const [seconds, setSeconds] = useState(0);
   const [problem, setProblem] = useState('');
-  const [viz, setViz] = useState<VizResult | null>(null);
+  const [viz, setViz] = useState<(VizResult & { id: number; query: string }) | null>(null);
 
   useEffect(() => {
     const t = window.setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -109,7 +109,8 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
     setBusy(true);
     setProblem('');
     try {
-      setViz(await api<VizResult>(`/challenges/${challenge.id}/explain`, { body: { query } }));
+      const result = await api<VizResult>(`/challenges/${challenge.id}/explain`, { body: { query } });
+      setViz({ ...result, id: Date.now(), query });
     } catch (e) {
       fail(e);
     } finally {
@@ -311,7 +312,16 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
             </div>
           </section>
 
-          {viz && <SqlVisualizer result={viz} onClose={() => setViz(null)} />}
+          {viz && (
+            <SqlVisualizer
+              key={viz.id}
+              result={viz}
+              onClose={() => setViz(null)}
+              onAskTutor={async () =>
+                (await api<{ tutor: TutorReply | null }>(`/challenges/${challenge.id}/tutor`, { body: { query: viz.query } })).tutor
+              }
+            />
+          )}
         </div>
       </div>
 
