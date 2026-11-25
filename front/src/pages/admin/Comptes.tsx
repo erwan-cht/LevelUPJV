@@ -12,7 +12,7 @@ import {
 } from '../../format';
 import { useMe } from '../../me';
 import { Avatar, Breadcrumb, PageTitle, buttonBrand, buttonOutline, buttonPrimary, inputClass } from '../../components/ui';
-import { useAdmin, type Account, type AccountDraft, type Credential } from './store';
+import { useAdmin, type Account, type AccountDraft, type Credential, type PasswordRequest } from './store';
 import { AuditLog, ConfirmDialog, Field, Modal, RoleBadge, StatCard, StatusBadge, selectClass, useToast } from './ui';
 
 const PAGE_SIZE = 10;
@@ -22,7 +22,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type Confirm = { kind: 'delete' | 'reset'; ids: number[] } | null;
 
 export default function Comptes() {
-  const { accounts, promotions, createAccount, updateAccount, setAccountStatus, deleteAccounts, resetPasswords } = useAdmin();
+  const { accounts, promotions, requests, createAccount, updateAccount, setAccountStatus, deleteAccounts, resetPasswords, dismissRequest } = useAdmin();
   const { me } = useMe();
   const toast = useToast();
 
@@ -289,6 +289,11 @@ export default function Comptes() {
         </section>
 
         <aside className="space-y-5">
+          <RequestsCard
+            requests={requests}
+            onGenerate={(userId) => resetPassword([userId])}
+            onDismiss={(id) => run(() => dismissRequest(id), 'Demande écartée')}
+          />
           <PendingCard accounts={accounts} onValidate={(ids) => setStatusOf(ids, 'actif')} />
           <AuditLog />
         </aside>
@@ -531,5 +536,50 @@ function AccountForm({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Demandes « mot de passe oublié » : l'administrateur génère un mot de passe provisoire ou écarte la demande. */
+function RequestsCard({
+  requests,
+  onGenerate,
+  onDismiss,
+}: {
+  requests: PasswordRequest[];
+  onGenerate: (userId: number) => void;
+  onDismiss: (id: number) => void;
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-red-600 bg-white">
+      <div className="flex items-center justify-between bg-red-600 px-4 py-2 text-white">
+        <h2 className="text-xs font-semibold uppercase tracking-wide">Mots de passe oubliés</h2>
+        <span className="text-[11px]">{requests.length}</span>
+      </div>
+      {requests.length === 0 ? (
+        <p className="p-4 text-xs text-muted">Aucune demande en attente.</p>
+      ) : (
+        <ul className="space-y-1 p-3">
+          {requests.map((r) => (
+            <li key={r.id} className="rounded-md px-2 py-1.5">
+              <div className="flex items-center gap-3">
+                <Avatar initials={r.initials} size="h-8 w-8 text-xs" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{r.name}</p>
+                  <p className="truncate text-[11px] text-muted">{r.email} · demandé {formatWhen(r.createdAt).toLowerCase()}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex gap-2 pl-11">
+                <button onClick={() => onGenerate(r.userId)} className="rounded bg-navy px-2.5 py-1 text-[11px] font-medium text-white hover:bg-navy-light">
+                  Générer un mot de passe
+                </button>
+                <button onClick={() => onDismiss(r.id)} className="rounded border border-slate-300 px-2.5 py-1 text-[11px] font-medium hover:bg-slate-50">
+                  Écarter
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

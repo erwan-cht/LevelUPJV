@@ -216,11 +216,50 @@ adminRouter.post('/accounts/reset-password', async (req, res) => {
     await prisma.user.update({ where: { id: u.id }, data: { passwordHash: await hash(temporaryPassword) } });
     out.push({ id: u.id, name: fullName(u), email: u.email, temporaryPassword });
   }
+  // Les demandes « mot de passe oublié » de ces comptes sont désormais traitées.
+  await prisma.passwordResetRequest.updateMany({
+    where: { userId: { in: users.map((u) => u.id) }, handledAt: null },
+    data: { handledAt: new Date() },
+  });
   await log(
     req.auth!.sub,
     users.length === 1 ? `Mot de passe de ${fullName(users[0])} réinitialisé` : `Mots de passe de ${users.length} comptes réinitialisés`,
   );
   res.json(out);
+});
+
+// ───────────── Demandes de mot de passe oublié ─────────────
+
+adminRouter.get('/password-requests', async (_req, res) => {
+  const rows = await prisma.passwordResetRequest.findMany({
+    where: { handledAt: null },
+    orderBy: { createdAt: 'asc' },
+    include: { user: true },
+  });
+  res.json(
+    rows.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      name: fullName(r.user),
+      initials: initials(r.user.firstName, r.user.lastName),
+      email: r.user.email,
+      role: roleLabel[r.user.role],
+      createdAt: r.createdAt.toISOString(),
+    })),
+  );
+});
+
+/** Écarte une demande (par exemple une erreur de saisie) sans toucher au mot de passe. */
+adminRouter.post('/password-requests/:id/dismiss', async (req, res) => {
+  const id = ID(req.params.id);
+  const request = id ? await prisma.passwordResetRequest.findFirst({ where: { id, handledAt: null }, include: { user: true } }) : null;
+  if (!request) {
+    res.status(404).json({ error: 'Demande introuvable ou déjà traitée.' });
+    return;
+  }
+  await prisma.passwordResetRequest.update({ where: { id: request.id }, data: { handledAt: new Date() } });
+  await log(req.auth!.sub, `Demande de mot de passe de ${fullName(request.user)} écartée`);
+  res.json({ ok: true });
 });
 
 // ───────────── Promotions et groupes ─────────────

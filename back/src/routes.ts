@@ -73,6 +73,40 @@ api.post('/auth/login', async (req, res) => {
   res.json({ token: signToken({ sub: user.id, role: user.role }), role: roleLabel[user.role] });
 });
 
+// ───────────── Mot de passe oublié ─────────────
+
+// Garde-fou contre le spam de la file d'attente des administrateurs : 60 demandes par tranche de 10 minutes.
+let forgotWindow = { start: Date.now(), count: 0 };
+
+/**
+ * Demande de nouveau mot de passe. Sans envoi d'e-mail, la demande est mise en attente et un administrateur
+ * génère un mot de passe provisoire. La réponse est la même que le compte existe ou non, pour ne pas révéler
+ * quels comptes existent.
+ */
+api.post('/auth/forgot', async (req, res) => {
+  const now = Date.now();
+  if (now - forgotWindow.start > 600_000) forgotWindow = { start: now, count: 0 };
+  if (++forgotWindow.count > 60) {
+    res.status(429).json({ error: 'Trop de demandes pour le moment. Réessaie dans quelques minutes.' });
+    return;
+  }
+
+  const identifiant = String(req.body?.identifiant ?? '').trim().toLowerCase();
+  if (!identifiant) {
+    res.status(400).json({ error: 'Renseigne ton identifiant ou ton e-mail.' });
+    return;
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: identifiant }, { email: { startsWith: `${identifiant}@` } }] },
+  });
+  if (user && user.status === 'ACTIVE') {
+    const pending = await prisma.passwordResetRequest.findFirst({ where: { userId: user.id, handledAt: null } });
+    if (!pending) await prisma.passwordResetRequest.create({ data: { userId: user.id } });
+  }
+  res.json({ ok: true });
+});
+
 // ───────────── Utilisateur et tableau de bord ─────────────
 
 api.get('/me', requireAuth(), async (req, res) => {

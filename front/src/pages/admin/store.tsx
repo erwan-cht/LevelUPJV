@@ -44,6 +44,17 @@ export interface ReferentialCompetence {
   value: number;
 }
 
+/** Demande « mot de passe oublié » faite depuis la page de connexion, à traiter par un administrateur. */
+export interface PasswordRequest {
+  id: number;
+  userId: number;
+  name: string;
+  initials: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
 export interface AuditEntry {
   id: number;
   at: string;
@@ -71,12 +82,14 @@ interface AdminStore {
   competences: ReferentialCompetence[];
   bySubject: Referential['bySubject'];
   audit: AuditEntry[];
+  requests: PasswordRequest[];
 
   createAccount: (d: AccountDraft) => Promise<Credential>;
   updateAccount: (id: number, d: AccountDraft) => Promise<void>;
   setAccountStatus: (ids: number[], status: AccountStatus) => Promise<void>;
   deleteAccounts: (ids: number[]) => Promise<void>;
   resetPasswords: (ids: number[]) => Promise<Credential[]>;
+  dismissRequest: (id: number) => Promise<void>;
 
   createPromotion: (p: { name: string; year: string; groups: number; referent: string }) => Promise<void>;
   addGroup: (promoId: number) => Promise<void>;
@@ -98,6 +111,7 @@ interface Loaded {
   contents: Content[];
   referential: Referential;
   audit: AuditEntry[];
+  requests: PasswordRequest[];
 }
 
 /** Données de l'espace admin, relues depuis l'API après chaque action. */
@@ -110,14 +124,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const [accounts, promotions, contents, referential, audit] = await Promise.all([
+      const [accounts, promotions, contents, referential, audit, requests] = await Promise.all([
         api<Account[]>('/admin/accounts'),
         api<Promotion[]>('/admin/promotions'),
         api<Content[]>('/admin/contents'),
         api<Referential>('/admin/competences'),
         api<AuditEntry[]>('/admin/audit'),
+        api<PasswordRequest[]>('/admin/password-requests'),
       ]);
-      setData({ accounts, promotions, contents, referential, audit });
+      setData({ accounts, promotions, contents, referential, audit, requests });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible.');
     } finally {
@@ -133,6 +148,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     if (!data) return null;
     const patch = (p: Partial<Loaded>) => setData((d) => (d ? { ...d, ...p } : d));
     const refreshAudit = async () => patch({ audit: await api<AuditEntry[]>('/admin/audit') });
+    const refreshRequests = async () => patch({ requests: await api<PasswordRequest[]>('/admin/password-requests') });
     const refreshAccounts = async () => patch({ accounts: await api<Account[]>('/admin/accounts') });
     const send = <T,>(path: string, method: string, body?: unknown) => api<T>(path, { method, body: body ?? {} });
 
@@ -155,6 +171,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       competences: data.referential.competences,
       bySubject: data.referential.bySubject,
       audit: data.audit,
+      requests: data.requests,
 
       createAccount: async (d) => {
         const res = await send<{ account: Account; temporaryPassword: string }>('/admin/accounts', 'POST', d);
@@ -175,8 +192,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       },
       resetPasswords: async (ids) => {
         const res = await send<Credential[]>('/admin/accounts/reset-password', 'POST', { ids });
-        await refreshAudit();
+        await Promise.all([refreshAudit(), refreshRequests()]);
         return res;
+      },
+      dismissRequest: async (id) => {
+        await send(`/admin/password-requests/${id}/dismiss`, 'POST');
+        await Promise.all([refreshAudit(), refreshRequests()]);
       },
 
       createPromotion: async (p) => afterPromotions(await send<Promotion[]>('/admin/promotions', 'POST', p)),

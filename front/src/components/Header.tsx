@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, LogOut, Menu, User, X } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Settings, User, X } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import Logo from './layout/Logo';
@@ -26,9 +26,13 @@ interface HeaderProps {
   badge?: string;
   home?: string;
   profilePath?: string;
+  /** Page des paramètres du compte (photo, mot de passe…). */
+  settingsPath?: string;
+  /** Photo de profil ; sans photo, une icône est affichée. */
+  avatarUrl?: string | null;
 }
 
-export default function Header({ links, chip, badge, home = '/', profilePath }: HeaderProps) {
+export default function Header({ links, chip, badge, home = '/', profilePath, settingsPath, avatarUrl }: HeaderProps) {
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const { logout } = useAuth();
@@ -69,8 +73,8 @@ export default function Header({ links, chip, badge, home = '/', profilePath }: 
             aria-expanded={menu}
             onClick={() => setMenu((m) => !m)}
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-white">
-              <User className="h-5 w-5" />
+            <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-navy text-white">
+              {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : <User className="h-5 w-5" />}
             </span>
             <ChevronDown className="h-4 w-4" />
           </button>
@@ -79,6 +83,11 @@ export default function Header({ links, chip, badge, home = '/', profilePath }: 
               {profilePath && (
                 <Link to={profilePath} onClick={() => setMenu(false)} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50">
                   <User className="h-4 w-4" /> Mon profil
+                </Link>
+              )}
+              {settingsPath && (
+                <Link to={settingsPath} onClick={() => setMenu(false)} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50">
+                  <Settings className="h-4 w-4" /> Paramètres
                 </Link>
               )}
               <button onClick={out} className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-600 hover:bg-slate-50">

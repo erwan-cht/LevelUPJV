@@ -1,16 +1,14 @@
 import { useState } from 'react';
-import { Check, Pencil, Star, User as UserIcon } from 'lucide-react';
+import { Check, Settings, Star, User as UserIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { api, useApi } from '../api';
+import { useApi } from '../api';
 import PageState from '../components/PageState';
 import { formatLongDate } from '../format';
-import { useMe } from '../me';
 import { subjectStyles } from '../subjects';
 import type { ApiUser, Competence, HistoryEntry } from '../types';
-import { Breadcrumb, Card, CardTitle, ProgressBar, Toggle, buttonOutline, formatNumber } from '../components/ui';
+import { Breadcrumb, Card, CardTitle, ProgressBar, buttonOutline, formatNumber } from '../components/ui';
 
 type Tab = 'apercu' | 'badges' | 'historique' | 'competences';
-type Settings = { showInRanking: boolean; acceptDuels: boolean; dailyReminder: boolean };
 
 interface ProfileData {
   user: ApiUser;
@@ -22,25 +20,22 @@ interface ProfileData {
   history: HistoryEntry[];
   badges: { name: string; earned: boolean }[];
   competences: Competence[];
-  settings: Settings;
 }
 
 const heatColors = ['bg-slate-200', 'bg-amber-200', 'bg-amber-400', 'bg-brand', 'bg-amber-700'];
 
 export default function Profil() {
-  const { data, setData, loading, error, reload } = useApi<ProfileData>('/profile');
+  const { data, loading, error, reload } = useApi<ProfileData>('/profile');
   return (
     <PageState loading={loading && !data} error={data ? null : error} onRetry={reload}>
-      {data && <ProfilContent data={data} setSettings={(settings) => setData({ ...data, settings })} />}
+      {data && <ProfilContent data={data} />}
     </PageState>
   );
 }
 
-function ProfilContent({ data, setSettings }: { data: ProfileData; setSettings: (s: Settings) => void }) {
-  const { refreshMe } = useMe();
+function ProfilContent({ data }: { data: ProfileData }) {
   const [tab, setTab] = useState<Tab>('apercu');
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const { user, info, stats, heatmap, settings } = data;
+  const { user, info, stats, heatmap } = data;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'apercu', label: 'Aperçu' },
@@ -49,32 +44,14 @@ function ProfilContent({ data, setSettings }: { data: ProfileData; setSettings: 
     { id: 'competences', label: 'Compétences BUT' },
   ];
 
-  /** Enregistre une préférence ; en cas d'échec, l'ancienne valeur est rétablie. */
-  const change = async (key: keyof Settings, value: boolean) => {
-    setSaveError(null);
-    setSettings({ ...settings, [key]: value });
-    try {
-      setSettings(await api<Settings>('/me/settings', { method: 'PATCH', body: { [key]: value } }));
-      refreshMe();
-    } catch (e) {
-      setSettings(settings);
-      setSaveError(e instanceof Error ? e.message : 'Impossible d’enregistrer la préférence.');
-    }
-  };
-
   return (
     <div className="space-y-5">
       <Breadcrumb items={[{ label: 'Accueil', to: '/' }, { label: 'Mon profil' }]} />
 
       <section className="flex flex-col gap-6 rounded-lg bg-navy p-6 text-white md:flex-row md:items-center">
-        <div className="relative shrink-0">
-          <span className="flex h-24 w-24 items-center justify-center rounded-full bg-white/15">
-            <UserIcon className="h-12 w-12" />
-          </span>
-          <button aria-label="Modifier l’avatar" disabled title="Bientôt disponible" className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-white text-navy disabled:opacity-70">
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        <span className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15">
+          {user.avatarUrl ? <img src={user.avatarUrl} alt="Ta photo de profil" className="h-full w-full object-cover" /> : <UserIcon className="h-12 w-12" />}
+        </span>
 
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{user.firstName} {user.lastName}</h1>
@@ -93,11 +70,17 @@ function ProfilContent({ data, setSettings }: { data: ProfileData; setSettings: 
             </div>
             <ProgressBar value={user.xp} max={user.xpNextLevel} color="bg-brand" track="bg-white/20" height="h-2" />
           </div>
+          <Link
+            to="/parametres"
+            className="mt-4 inline-flex items-center gap-2 rounded border border-white px-4 py-2 text-xs font-semibold transition hover:bg-white hover:text-navy"
+          >
+            <Settings className="h-3.5 w-3.5" /> Modifier mes paramètres
+          </Link>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           {[
-            ['Points', formatNumber(user.points), 'cette saison'],
+            ['Points', formatNumber(user.points), 'au total'],
             ['Défis réussis', String(stats.solved), `sur ${stats.totalChallenges}`],
             ['Badges', `${stats.badgesEarned} / ${stats.badgesTotal}`, 'débloqués'],
             ['Record de série', `${stats.bestStreak} j`, 'meilleure série'],
@@ -111,7 +94,7 @@ function ProfilContent({ data, setSettings }: { data: ProfileData; setSettings: 
         </div>
       </section>
 
-      <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-slate-200 text-sm">
+      <div role="tablist" className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 text-sm">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -175,21 +158,12 @@ function ProfilContent({ data, setSettings }: { data: ProfileData; setSettings: 
                   ['Promotion', info.promotion],
                   ['Groupe', info.group ?? '—'],
                   ['Ligue', info.league],
-                  ['Compte ENT', info.ent],
+                  ['Identifiant', info.ent],
                   ['Membre depuis', formatLongDate(info.memberSince)],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-3"><dt className="text-muted">{k}</dt><dd className="text-right font-semibold">{v}</dd></div>
                 ))}
               </dl>
-            </Card>
-            <Card>
-              <CardTitle>Confidentialité et rappels</CardTitle>
-              {saveError && <p role="alert" className="mt-2 rounded bg-red-50 px-3 py-2 text-xs text-red-800">{saveError}</p>}
-              <ul className="mt-3 space-y-2">
-                <Setting label="Apparaître dans le classement" text="Les autres étudiants voient ton nom et tes points." checked={settings.showInRanking} onChange={(v) => change('showInRanking', v)} />
-                <Setting label="Invitations à un duel" text="Autoriser les camarades à te défier." checked={settings.acceptDuels} onChange={(v) => change('acceptDuels', v)} />
-                <Setting label="Rappel quotidien" text="Préférence enregistrée ; l’envoi des rappels n’est pas encore actif." checked={settings.dailyReminder} onChange={(v) => change('dailyReminder', v)} />
-              </ul>
             </Card>
           </aside>
         </div>
@@ -257,17 +231,5 @@ function HistoryList({ items }: { items: HistoryEntry[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function Setting({ label, text, checked, onChange }: { label: string; text: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <li className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2">
-      <div>
-        <p className="text-xs font-semibold">{label}</p>
-        <p className="text-[11px] text-muted">{text}</p>
-      </div>
-      <Toggle checked={checked} onChange={onChange} label={label} />
-    </li>
   );
 }

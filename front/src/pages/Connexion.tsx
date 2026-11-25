@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { CheckCircle2, Eye, EyeOff, Swords, Trophy, Zap } from 'lucide-react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { homeFor, useAuth, type Role } from '../auth';
 import { ApiError } from '../api';
 import Logo from '../components/layout/Logo';
@@ -158,9 +158,9 @@ export default function Connexion() {
                 <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
                 Rester connecté
               </label>
-              <a href="#aide" className="font-semibold text-brand hover:underline">
+              <Link to="/mot-de-passe-oublie" className="font-semibold text-brand hover:underline">
                 Mot de passe oublié ?
-              </a>
+              </Link>
             </div>
 
             {error && (

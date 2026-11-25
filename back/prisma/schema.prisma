@@ -135,20 +135,34 @@ model User {
   badges            UserBadge[]
   hints             Hint[]
   favorites         Favorite[]
-  createdChallenges Challenge[]    @relation("ChallengeAuthor")
-  duelsSent         Duel[]         @relation("DuelChallenger")
-  duelsReceived     Duel[]         @relation("DuelOpponent")
-  duelsWon          Duel[]         @relation("DuelWinner")
-  hostedArenas      ArenaSession[] @relation("ArenaHost")
+  createdChallenges Challenge[]            @relation("ChallengeAuthor")
+  duelsSent         Duel[]                 @relation("DuelChallenger")
+  duelsReceived     Duel[]                 @relation("DuelOpponent")
+  duelsWon          Duel[]                 @relation("DuelWinner")
+  hostedArenas      ArenaSession[]         @relation("ArenaHost")
   arenaAnswers      ArenaAnswer[]
-  referentOf        Promotion[]    @relation("PromotionReferent")
+  referentOf        Promotion[]            @relation("PromotionReferent")
   assignments       Assignment[]
   auditEntries      AuditLog[]
   duelEvents        DuelEvent[]
+  passwordRequests  PasswordResetRequest[]
 
   @@index([groupId])
   @@index([role, status])
   @@index([points(sort: Desc)]) // classement : ORDER BY points DESC
+}
+
+// Demande de nouveau mot de passe faite depuis la page de connexion (« Mot de passe oublié »).
+// Sans envoi d'e-mail, c'est un administrateur qui la traite : il génère un mot de passe provisoire.
+model PasswordResetRequest {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  handledAt DateTime? // renseigné quand l'administrateur a traité ou écarté la demande
+
+  @@index([userId, handledAt])
+  @@index([handledAt, createdAt])
 }
 
 // ───────────── Compétences du référentiel BUT ─────────────

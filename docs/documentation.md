@@ -87,6 +87,7 @@ front/src/
 | Route | Page | Accès |
 |---|---|---|
 | `/connexion` | `Connexion.tsx` | Public |
+| `/mot-de-passe-oublie` | `MotDePasseOublie.tsx` | Public |
 | `/` | `Dashboard.tsx` | Étudiant |
 | `/defis` | `Defis.tsx` | Étudiant |
 | `/defis/:id` | `DefiDetail.tsx` | Étudiant |
@@ -95,14 +96,20 @@ front/src/
 | `/duels/:id` | `DuelLive.tsx` | Étudiant |
 | `/profil` | `Profil.tsx` | Étudiant |
 | `/succes` | `Succes.tsx` | Étudiant |
+| `/parametres` | `Parametres.tsx` | Étudiant |
+| `/parametres/mot-de-passe` | `MotDePasse.tsx` | Étudiant |
 | `/enseignant` | `teacher/MesPromos.tsx` | Enseignant |
 | `/enseignant/challenges` | `teacher/CreerDefi.tsx` | Enseignant |
 | `/enseignant/competences` | `teacher/Competences.tsx` | Enseignant |
 | `/enseignant/aide` | `teacher/Aide.tsx` | Enseignant |
+| `/enseignant/parametres` | `Parametres.tsx` | Enseignant |
+| `/enseignant/parametres/mot-de-passe` | `MotDePasse.tsx` | Enseignant |
 | `/admin` | `admin/Comptes.tsx` | Administrateur |
 | `/admin/promotions` | `admin/Promotions.tsx` | Administrateur |
 | `/admin/contenus` | `admin/Contenus.tsx` | Administrateur |
 | `/admin/referentiel` | `admin/Referentiel.tsx` | Administrateur |
+| `/admin/parametres` | `Parametres.tsx` | Administrateur |
+| `/admin/parametres/mot-de-passe` | `MotDePasse.tsx` | Administrateur |
 
 Toute autre adresse redirige vers `/`.
 
@@ -147,14 +154,17 @@ Couleur par matière (`subjects.ts`, `subjectStyles`) : Bases de données en ble
 
 | Page | Fonctionnement |
 |---|---|
-| **Connexion** | Onglets Étudiant / Enseignant, affichage du mot de passe, message d'erreur renvoyé par l'API (identifiants faux, compte suspendu ou en attente). Redirige selon le rôle. |
+| **Connexion** | Onglets Étudiant / Enseignant, affichage du mot de passe, message d'erreur renvoyé par l'API (identifiants faux, compte suspendu ou en attente). Redirige selon le rôle. Le lien « Mot de passe oublié ? » mène à une page dédiée. |
+| **Mot de passe oublié** | Page publique : on saisit son identifiant ou son e-mail, la demande est transmise à un administrateur (la réponse est la même que le compte existe ou non). |
 | **Tableau de bord** | Bienvenue (niveau, XP, rang et son évolution sur 7 jours), « Mes défis » (onglets), activité sur 7 jours, badges et prochain badge, classement promo/groupe, objectifs du jour, camarades en ligne. |
 | **Défis** | Résumé par matière, recherche, filtres (niveau, statut), tri (recommandé, points, durée), favoris. « Recommandé » : défis proposés par un enseignant à ton groupe. |
 | **Page d'un défi** | Éditeur SQL, « Exécuter » et « Valider » (correction automatique sur le jeu de données du défi), tables disponibles, résultat attendu et obtenu, 3 indices débloquables (leur coût est déduit du gain quand le défi est réussi). |
 | **Classement** | Podium, tableau (recherche, promo/groupe), ligues (seuils fournis par l'API), évolution du rang, histogramme des points par semaine. |
 | **Duels** | Choix de la matière, du niveau et du type de duel, invitations reçues (accepter/refuser), camarades de la promo avec leur présence. Les duels portent sur les défis SQL. |
 | **Duel en direct** (`/duels/:id`) | Attente de l'adversaire, chrono de 10 minutes, éditeur SQL, « Exécuter » et « Soumettre », progression de l'adversaire, fil du duel, victoire, égalité ou abandon. La page relit l'état toutes les 2 secondes. |
-| **Profil** | Quatre onglets (aperçu, badges, historique, compétences BUT), carte de chaleur des 12 dernières semaines, préférences de confidentialité enregistrées. |
+| **Profil** | Quatre onglets (aperçu, badges, historique, compétences BUT), carte de chaleur des 12 dernières semaines, lien vers les paramètres. |
+| **Changer le mot de passe** | Page dédiée (depuis les paramètres) : mot de passe actuel, nouveau mot de passe avec indicateur de robustesse et règles en direct, confirmation, affichage possible des saisies. |
+| **Paramètres** | Page commune aux trois profils, ouverte depuis le menu du compte : informations du compte, photo de profil, lien vers la page de changement de mot de passe, et (étudiants) confidentialité : apparaître au classement, accepter les duels. |
 | **Succès** | Tous les badges avec leur progression ; « Réclamer » crédite la récompense en points. |
 | **Mes promos** | Statistiques de la promo (filtrables par promotion, groupe et période), notions où la promo bloque, assignation d'un challenge à un groupe (il devient « recommandé » chez les étudiants), étudiants à accompagner, compétences. |
 | **Créer un défi** | Formulaire en 5 sections, aperçu étudiant en direct, liste de contrôle avant publication. L'enregistrement vérifie que la requête de référence s'exécute sur le jeu de données. |
@@ -200,7 +210,7 @@ Autres scripts : `db:down` (arrête la base), `db:generate` (client Prisma), `db
 | Compétences | `Competence`, `ChallengeCompetence` |
 | Gamification | `PointEvent`, `Badge` (règle : mesure et seuil), `UserBadge` |
 | Duels | `Duel`, `DuelEvent` (fil du duel) |
-| Administration | `AuditLog` (journal d'administration) |
+| Administration | `AuditLog` (journal d'administration), `PasswordResetRequest` (demandes de mot de passe oublié) |
 | Arène live | `ArenaSession`, `ArenaChallenge`, `ArenaAnswer` (pas encore utilisés) |
 
 Énumérations : `Role`, `AccountStatus`, `ContentStatus`, `Difficulty`, `ChallengeType`, `Subject`, `AttemptStatus`, `DuelStatus`, `ArenaStatus`.
@@ -218,13 +228,16 @@ Serveur Express (`server.ts`) qui lit et écrit dans PostgreSQL via Prisma. Tout
 | Méthode et route | Rôle |
 |---|---|
 | `POST /api/auth/login` | Connexion (`identifiant` : e-mail ou partie avant `@`, `password`). Refuse les comptes suspendus ou en attente. |
+| `POST /api/auth/forgot` | Mot de passe oublié (public) : met une demande en attente pour les administrateurs. Même réponse que le compte existe ou non ; une seule demande en attente par compte ; 60 demandes par tranche de 10 minutes pour tout le site. |
 | `GET /api/me` | Utilisateur connecté : niveau, XP, points, ligue, rang et évolution |
 | `GET /api/dashboard` | Tableau de bord : défis, classements, activité 7 jours, badges, objectifs, série, camarades en ligne |
 | `GET /api/ranking?scope=promo` ou `groupe` | Classement, ligues, points des 6 dernières semaines |
 | `GET /api/challenges` · `GET /api/challenges/:id` | Catalogue (état, favoris, recommandations) · détail (la solution n'est jamais envoyée) |
 | `POST /api/challenges/:id/run` · `attempt` · `hints` · `favorite` | Exécuter · corriger (points au **premier** succès) · débloquer un indice · favori |
 | `GET /api/profile` | Statistiques, carte de chaleur, historique, progression par matière, compétences, préférences |
-| `PATCH /api/me/settings` | Préférences (apparaître au classement, accepter les duels, rappel) |
+| `PATCH /api/me/settings` | Préférences (apparaître au classement, accepter les duels) |
+| `PUT` · `DELETE /api/me/avatar` | Photo de profil (tous les rôles) : image JPEG, PNG ou WebP réduite à 128 px, vérifiée d'après son contenu réel, 60 Ko maximum |
+| `POST /api/me/password` | Changer son mot de passe (tous les rôles) : demande l'actuel, 8 caractères minimum pour le nouveau |
 | `GET /api/achievements` · `POST /api/achievements/:id/claim` | Succès et progression · réclamer la récompense (une seule fois) |
 | `GET /api/duels` · `POST /api/duels` | Vue d'ensemble · lancer une invitation (adversaire choisi ou tiré au hasard) |
 | `GET /api/duels/:id` | État du duel (chrono, progression, fil) ; tranche le duel si le chrono est écoulé |
@@ -232,7 +245,7 @@ Serveur Express (`server.ts`) qui lit et écrit dans PostgreSQL via Prisma. Tout
 
 **Enseignant** (`teacher.ts`, préfixe `/api/teacher`) : `GET /overview?promoId&groupId&period` (statistiques, notions, étudiants à accompagner, compétences), `GET /competences`, `GET /options`, `POST /assignments` (proposer un défi à un groupe ou une promo), `POST /challenges` (créer un défi : la requête de référence est testée avant l'enregistrement).
 
-**Administrateur** (`admin.ts`, préfixe `/api/admin`) : `accounts` (liste, création, modification, `status`, `delete`, `reset-password`), `promotions` (création, groupes, référent, suppression), `contents` (publier, masquer, brouillon), `competences` (référentiel), `audit` (journal). Chaque modification est inscrite dans le journal. Un administrateur ne peut ni se suspendre ni se supprimer.
+**Administrateur** (`admin.ts`, préfixe `/api/admin`) : `accounts` (liste, création, modification, `status`, `delete`, `reset-password`), `promotions` (création, groupes, référent, suppression), `contents` (publier, masquer, brouillon), `competences` (référentiel), `password-requests` (demandes « mot de passe oublié » : générer un mot de passe provisoire, ce qui traite la demande, ou l'écarter), `audit` (journal). Chaque modification est inscrite dans le journal. Un administrateur ne peut ni se suspendre ni se supprimer.
 
 `GET /api/health` vérifie que l'API répond.
 
@@ -278,10 +291,10 @@ Toutes les pages sont branchées sur l'API et la base. Étapes suivantes :
 ## 10. Limites connues
 
 - La correction automatique ne couvre que les défis SQL, et l'exécution SQL n'a pas de délai maximum : une requête volontairement très longue pourrait bloquer le serveur (à durcir avec un processus séparé).
-- Pas d'envoi d'e-mails : à la création d'un compte ou à la réinitialisation, l'administrateur reçoit un mot de passe provisoire à transmettre. Il n'y a pas encore de page pour changer son mot de passe. Le rappel quotidien est une préférence enregistrée, sans envoi.
+- Pas d'envoi d'e-mails : à la création d'un compte ou à la réinitialisation, l'administrateur reçoit un mot de passe provisoire à transmettre. Pour un mot de passe oublié, la personne fait une demande depuis la page de connexion ; un administrateur la voit dans la page Comptes et lui remet un mot de passe provisoire, qu'elle change ensuite depuis ses paramètres.
 - À la création d'un défi, seuls « L'ordre des lignes » et « Tentatives max » sont appliqués ; les réglages anti-triche et IA sont enregistrés mais pas encore utilisés. Les indices sont les mêmes pour tous les défis.
 - Les compétences « Conduire un projet » et « Collaborer » restent à 0 % : aucun défi n'y est encore rattaché.
 - Un enseignant voit toutes les promotions, pas seulement les siennes.
-- L'avatar n'est pas modifiable.
+- Le nom et l'e-mail d'un compte ne se changent que par un administrateur.
 - Pas de tests automatiques ni de CI.
 - Rendu mobile à vérifier visuellement sur chaque page.

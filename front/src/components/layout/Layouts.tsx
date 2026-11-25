@@ -22,7 +22,7 @@ function Shell({ header, children }: { header: ReactNode; children: ReactNode })
 function StudentShell() {
   const { me } = useMe();
   return (
-    <Shell header={<Header links={studentNav} chip={me ? `${formatNumber(me.points)} pts` : '… pts'} profilePath="/profil" />}>
+    <Shell header={<Header links={studentNav} chip={me ? `${formatNumber(me.points)} pts` : '… pts'} profilePath="/profil" settingsPath="/parametres" avatarUrl={me?.avatarUrl} />}>
       <Outlet />
     </Shell>
   );
@@ -51,7 +51,7 @@ const teacherNav: NavItem[] = [
 function TeacherShell() {
   const { me } = useMe();
   return (
-    <Shell header={<Header links={teacherNav} chip={me?.shortName ?? '…'} badge="Enseignant" home="/enseignant" />}>
+    <Shell header={<Header links={teacherNav} chip={me?.shortName ?? '…'} badge="Enseignant" home="/enseignant" settingsPath="/enseignant/parametres" avatarUrl={me?.avatarUrl} />}>
       <Outlet />
     </Shell>
   );
@@ -80,7 +80,7 @@ const adminNav: NavItem[] = [
 function AdminShell() {
   const { me } = useMe();
   return (
-    <Shell header={<Header links={adminNav} chip={me ? `${me.firstName} ${me.lastName}` : '…'} badge="Admin" home="/admin" />}>
+    <Shell header={<Header links={adminNav} chip={me ? `${me.firstName} ${me.lastName}` : '…'} badge="Admin" home="/admin" settingsPath="/admin/parametres" avatarUrl={me?.avatarUrl} />}>
       <AdminProvider>
         <Outlet />
       </AdminProvider>

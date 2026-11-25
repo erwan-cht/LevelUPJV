@@ -93,6 +93,8 @@ export async function userSummary(u: UserRow) {
     firstName: u.firstName,
     lastName: u.lastName,
     initials: initials(u.firstName, u.lastName),
+    avatarUrl: u.avatarUrl,
+    settings: { showInRanking: u.showInRanking, acceptDuels: u.acceptDuels },
     shortName: `${u.firstName[0]}. ${u.lastName}`,
     email: u.email,
     formation: promotion?.name ?? (promo ? `${promo} Informatique` : 'IUT d’Amiens'),

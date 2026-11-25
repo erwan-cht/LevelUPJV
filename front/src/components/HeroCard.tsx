@@ -12,8 +12,8 @@ export default function HeroCard({ user, resumeTitle, resumeId }: { user: User; 
       <div className="flex flex-col gap-6 md:flex-row md:items-center">
         {/* Avatar + niveau */}
         <div className="relative mx-auto shrink-0 md:mx-0">
-          <div className="flex h-28 w-28 items-center justify-center rounded-full bg-slate-200">
-            <UserIcon className="h-16 w-16 fill-navy text-navy" />
+          <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-slate-200">
+            {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : <UserIcon className="h-16 w-16 fill-navy text-navy" />}
           </div>
           <span className="absolute right-0 bottom-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-navy bg-brand text-xs font-bold">
             {user.level}

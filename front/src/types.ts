@@ -6,6 +6,7 @@ export type Subject = 'Bases de données' | 'Algorithmique' | 'Développement we
 export interface User {
   firstName: string;
   initials: string;
+  avatarUrl?: string | null;
   formation: string;
   league: string;
   level: number;
@@ -116,6 +117,7 @@ export interface ApiUser extends User {
   group: string | null;
   streakDays: number;
   memberSince: string;
+  settings: { showInRanking: boolean; acceptDuels: boolean };
 }
 
 export interface ApiChallenge extends CatalogChallenge {

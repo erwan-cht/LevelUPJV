@@ -1,4 +1,5 @@
 // Profil de l'étudiant : statistiques, historique, compétences, succès (badges) et préférences.
+import bcrypt from 'bcryptjs';
 import { Router } from 'express';
 import { requireAuth } from './auth.js';
 import { syncBadges } from './badges.js';
@@ -186,4 +187,59 @@ profileRouter.post('/achievements/:id/claim', requireAuth('STUDENT'), async (req
     }
   });
   res.json({ claimed: true, points: badge.rewardPoints });
+});
+
+// ───────────── Compte : photo de profil et mot de passe (tous les rôles) ─────────────
+
+/** Reconnaît le vrai format d'une image d'après ses premiers octets (on ne se fie pas au type annoncé). */
+function imageKind(buf: Buffer) {
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';
+  if (buf[0] === 0x89 && buf.toString('ascii', 1, 4) === 'PNG') return 'png';
+  if (buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  return null;
+}
+
+/** Photo de profil : petite image (réduite par le navigateur) conservée telle quelle en base. */
+profileRouter.put('/me/avatar', requireAuth(), async (req, res) => {
+  const image = String(req.body?.image ?? '');
+  const match = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(image);
+  if (!match || image.length > 60_000) {
+    res.status(400).json({ error: 'Image invalide ou trop lourde (JPEG, PNG ou WebP, 60 Ko maximum).' });
+    return;
+  }
+  if (imageKind(Buffer.from(match[2], 'base64')) !== match[1]) {
+    res.status(400).json({ error: 'Le fichier n’est pas une image valide.' });
+    return;
+  }
+  await prisma.user.update({ where: { id: req.auth!.sub }, data: { avatarUrl: image } });
+  res.json({ avatarUrl: image });
+});
+
+profileRouter.delete('/me/avatar', requireAuth(), async (req, res) => {
+  await prisma.user.update({ where: { id: req.auth!.sub }, data: { avatarUrl: null } });
+  res.json({ avatarUrl: null });
+});
+
+/**
+ * Changement de mot de passe. Les refus renvoient 400 et non 401 : le site déconnecte
+ * automatiquement sur une réponse 401, ce qui serait trompeur pour un simple mot de passe actuel erroné.
+ */
+profileRouter.post('/me/password', requireAuth(), async (req, res) => {
+  const current = String(req.body?.current ?? '');
+  const next = String(req.body?.next ?? '');
+  if (next.length < 8 || next.length > 72) {
+    res.status(400).json({ error: 'Le nouveau mot de passe doit faire entre 8 et 72 caractères.' });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.auth!.sub } });
+  if (!user || !(await bcrypt.compare(current, user.passwordHash))) {
+    res.status(400).json({ error: 'Le mot de passe actuel est incorrect.' });
+    return;
+  }
+  if (current === next) {
+    res.status(400).json({ error: 'Choisis un mot de passe différent de l’actuel.' });
+    return;
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(next, 10) } });
+  res.json({ ok: true });
 });

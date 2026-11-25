@@ -11,6 +11,9 @@ import DefiDetail from './pages/DefiDetail';
 import Defis from './pages/Defis';
 import DuelLive from './pages/DuelLive';
 import Duels from './pages/Duels';
+import MotDePasse from './pages/MotDePasse';
+import MotDePasseOublie from './pages/MotDePasseOublie';
+import Parametres from './pages/Parametres';
 import Profil from './pages/Profil';
 import Succes from './pages/Succes';
 import Aide from './pages/teacher/Aide';
@@ -22,6 +25,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/connexion" element={<Connexion />} />
+      <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
 
       <Route element={<StudentLayout />}>
         <Route index element={<Dashboard />} />
@@ -32,6 +36,8 @@ export default function App() {
         <Route path="duels/:id" element={<DuelLive />} />
         <Route path="profil" element={<Profil />} />
         <Route path="succes" element={<Succes />} />
+        <Route path="parametres" element={<Parametres />} />
+        <Route path="parametres/mot-de-passe" element={<MotDePasse />} />
       </Route>
 
       <Route path="enseignant" element={<TeacherLayout />}>
@@ -39,6 +45,8 @@ export default function App() {
         <Route path="challenges" element={<CreerDefi />} />
         <Route path="competences" element={<Competences />} />
         <Route path="aide" element={<Aide />} />
+        <Route path="parametres" element={<Parametres />} />
+        <Route path="parametres/mot-de-passe" element={<MotDePasse />} />
       </Route>
 
       <Route path="admin" element={<AdminLayout />}>
@@ -46,6 +54,8 @@ export default function App() {
         <Route path="promotions" element={<Promotions />} />
         <Route path="contenus" element={<Contenus />} />
         <Route path="referentiel" element={<Referentiel />} />
+        <Route path="parametres" element={<Parametres />} />
+        <Route path="parametres/mot-de-passe" element={<MotDePasse />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
