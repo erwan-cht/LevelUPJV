@@ -127,7 +127,7 @@ profileRouter.get('/profile', requireAuth('STUDENT'), async (req, res) => {
     subjectProgress,
     recent: history.slice(0, 4),
     history: history.slice(0, 60),
-    badges: badges.map((b) => ({ name: b.name, earned: b.earned })),
+    badges: badges.map((b) => ({ slug: b.slug, name: b.name, earned: b.earned })),
     competences: competences.map((c) => ({ name: c.name, description: c.description, value: c.value })),
     settings: { showInRanking: user.showInRanking, acceptDuels: user.acceptDuels, dailyReminder: user.dailyReminder },
   });

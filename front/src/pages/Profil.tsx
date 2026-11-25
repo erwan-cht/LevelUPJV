@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Check, Settings, Star, User as UserIcon } from 'lucide-react';
+import { Check, Settings, User as UserIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useApi } from '../api';
 import PageState from '../components/PageState';
 import { formatLongDate } from '../format';
 import { subjectStyles } from '../subjects';
 import type { ApiUser, Competence, HistoryEntry } from '../types';
+import BadgeIcon from '../components/BadgeIcon';
 import { Breadcrumb, Card, CardTitle, ProgressBar, buttonOutline, formatNumber } from '../components/ui';
 
 type Tab = 'apercu' | 'badges' | 'historique' | 'competences';
@@ -18,7 +19,7 @@ interface ProfileData {
   subjectProgress: { subject: keyof typeof subjectStyles; done: number; total: number }[];
   recent: HistoryEntry[];
   history: HistoryEntry[];
-  badges: { name: string; earned: boolean }[];
+  badges: { slug?: string; name: string; earned: boolean }[];
   competences: Competence[];
 }
 
@@ -178,9 +179,7 @@ function ProfilContent({ data }: { data: ProfileData }) {
           <ul className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-6">
             {data.badges.map((b) => (
               <li key={b.name} className="flex flex-col items-center gap-2 text-center text-xs">
-                <span className={`flex h-14 w-14 items-center justify-center rounded-full ${b.earned ? 'bg-navy text-white' : 'bg-slate-200 text-slate-400'}`}>
-                  <Star className="h-6 w-6" fill="currentColor" />
-                </span>
+                <BadgeIcon slug={b.slug} locked={!b.earned} size="h-14 w-14" />
                 <span className={b.earned ? 'font-semibold' : 'text-muted'}>{b.name}</span>
               </li>
             ))}

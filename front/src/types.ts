@@ -46,6 +46,7 @@ export interface ActivityDay {
 }
 
 export interface Badge {
+  slug?: string; // illustration : public/badges/<slug>.webp
   name: string;
   variant: 'navy' | 'orange' | 'locked';
 }

@@ -176,6 +176,7 @@ api.get('/dashboard', requireAuth('STUDENT'), async (req, res) => {
     .sort((a, b) => (b.earnedAt?.getTime() ?? 0) - (a.earnedAt?.getTime() ?? 0));
   const locked = badgeStates.filter((b) => !b.earned);
   const badgeList = [...earned, ...locked].slice(0, 6).map((b) => ({
+    slug: b.slug,
     name: b.name,
     variant: b.earned ? (b.variant === 'orange' ? 'orange' : 'navy') : 'locked',
   }));
