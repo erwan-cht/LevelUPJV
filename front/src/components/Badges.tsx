@@ -1,5 +1,5 @@
-import { Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import BadgeIcon from './BadgeIcon';
 import type { Badge } from '../types';
 import { Card, CardTitle, ProgressBar } from './ui';
 
@@ -28,12 +28,7 @@ export default function Badges({
       <ul className="grid grid-cols-3 gap-4 sm:grid-cols-6">
         {badges.map((b) => (
           <li key={b.name} className="flex flex-col items-center gap-2 text-center">
-            <span
-              className={`flex h-12 w-12 items-center justify-center rounded-full ${variantClass[b.variant]}`}
-              title={b.variant === 'locked' ? 'Pas encore débloqué' : undefined}
-            >
-              <Star className="h-5 w-5 fill-white text-white" />
-            </span>
+            <BadgeIcon slug={b.slug} locked={b.variant === 'locked'} color={variantClass[b.variant]} />
             <span className={`text-xs ${b.variant === 'locked' ? 'text-muted' : 'font-medium'}`}>{b.name}</span>
           </li>
         ))}
