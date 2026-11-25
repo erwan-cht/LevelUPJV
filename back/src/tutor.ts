@@ -17,7 +17,7 @@ export interface TutorReply {
 
 const CLAUDE_MODEL = 'claude-opus-5-5';
 // Identifiant à vérifier dans AI Studio (liste des modèles) : surchargeable sans toucher au code.
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
 type Provider = 'gemini' | 'claude';
 
