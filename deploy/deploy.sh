@@ -59,7 +59,7 @@ main() {
   chmod -R a+rX "$WEB"
 
   # ── Redémarrage de l'API et vérification ──
-  run pm2 restart "$PM2_NAME"
+  pm2 restart "$PM2_NAME" >/dev/null 2>&1 || fail "pm2 restart"
   sleep 3
   curl -fsS http://127.0.0.1:3001/api/health >> "$LOG" 2>&1 || fail "l'API ne répond pas après redémarrage"
 
