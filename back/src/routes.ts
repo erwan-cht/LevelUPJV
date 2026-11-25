@@ -351,11 +351,13 @@ api.post('/challenges/:id/explain', requireAuth('STUDENT'), async (req, res) => 
   res.json(explainAttempt(c.setupSql, c.solutionSql, q.query));
 });
 
-const TUTOR_PER_HOUR = 5;
+const TUTOR_PER_HOUR = 10;
 
 /**
  * Tuteur IA (W-05) : repère l'étape fautive, explique sans donner la réponse, et indique à la visualisation
- * où sauter. Chaque échange est journalisé (Hint, niveau 0, sans coût en points) et limité par élève et par défi.
+ * où sauter. Les échanges avec l'IA sont journalisés (Hint, niveau 0, sans coût en points) et limités par élève
+ * et par défi : le quota du fournisseur est partagé. Le conseil construit sans IA est gratuit, donc ni journalisé
+ * ni compté.
  */
 api.post('/challenges/:id/tutor', requireAuth('STUDENT'), async (req, res) => {
   const id = ID(req.params.id);
@@ -385,7 +387,7 @@ api.post('/challenges/:id/tutor', requireAuth('STUDENT'), async (req, res) => {
     return;
   }
   const reply = await tutor(c.statement, q.query, result);
-  if (reply) {
+  if (reply?.source === 'ai') {
     await prisma.hint.create({
       data: { userId, challengeId: c.id, level: 0, prompt: q.query.slice(0, 2000), response: reply.text, cost: 0 },
     });
