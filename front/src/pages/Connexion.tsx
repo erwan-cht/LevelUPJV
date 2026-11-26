@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { CheckCircle2, Eye, EyeOff, Swords, Trophy, Zap } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { homeFor, useAuth, type Role } from '../auth';
+import { homeFor, useAuth } from '../auth';
 import { ApiError } from '../api';
 import Logo from '../components/layout/Logo';
-import { buttonBrand, buttonOutline, inputClass } from '../components/ui';
+import { buttonBrand, inputClass } from '../components/ui';
 
 const features = [
   { icon: Zap, title: 'Correction automatique', text: 'SQL, algorithmique, web : ta réponse est testée en quelques secondes.' },
@@ -13,9 +13,8 @@ const features = [
 ];
 
 export default function Connexion() {
-  const { role: current, login, logout } = useAuth();
+  const { role: current, login } = useAuth();
   const navigate = useNavigate();
-  const [role, setRole] = useState<Role>('etudiant');
   const [identifiant, setIdentifiant] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -29,13 +28,8 @@ export default function Connexion() {
     setError('');
     setBusy(true);
     try {
+      // Le rôle est celui du compte en base : on redirige vers l’espace correspondant.
       const got = await login(id, pwd);
-      if (got !== role) {
-        logout();
-        const label = got === 'enseignant' ? 'Enseignant' : got === 'admin' ? 'Administrateur' : 'Étudiant';
-        setError(`Ce compte est un compte ${label.toLowerCase()} : choisis l’onglet « ${label} ».`);
-        return;
-      }
       navigate(homeFor(got), { replace: true });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Connexion impossible.');
@@ -53,12 +47,6 @@ export default function Connexion() {
     void tryLogin(identifiant, password);
   };
 
-  // Raccourci de démonstration : compte de test de chaque profil (voir le seed de la base).
-  const quickLogin = () => {
-    const demo = { etudiant: 'oscar.lescot', enseignant: 'm.dupuis', admin: 'admin.dsi' }[role];
-    void tryLogin(demo, 'levelup123');
-  };
-
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-slate-200 bg-white">
@@ -70,8 +58,9 @@ export default function Connexion() {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-8 px-4 py-10 lg:grid-cols-2 lg:items-center">
-        <section className="rounded-lg bg-navy p-8 text-white">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center px-4 py-10">
+        <div className="grid w-full overflow-hidden rounded-xl border border-slate-200 shadow-sm lg:grid-cols-2">
+        <section className="flex flex-col justify-center bg-navy p-8 text-white lg:p-10">
           <h1 className="text-3xl font-bold leading-tight">
             Entraîne-toi, <span className="text-brand">progresse</span>, grimpe au classement.
           </h1>
@@ -98,60 +87,48 @@ export default function Connexion() {
           </p>
         </section>
 
-        <section className="rounded-lg bg-panel p-8">
+        <section className="flex flex-col justify-center bg-white p-8 lg:p-10">
           <h2 className="text-2xl font-semibold">Connexion</h2>
           <p className="mt-1 text-sm text-muted">
             Content de te revoir. Connecte-toi pour reprendre là où tu t’étais arrêté.
           </p>
 
-          <div className="mt-5 flex rounded-md bg-white p-0.5 text-sm" role="tablist" aria-label="Type de compte">
-            {(['etudiant', 'enseignant', 'admin'] as Role[]).map((r) => (
-              <button
-                key={r}
-                role="tab"
-                aria-selected={role === r}
-                onClick={() => setRole(r)}
-                className={`flex-1 rounded px-3 py-2 font-medium transition-colors ${
-                  role === r ? 'bg-navy text-white' : 'hover:bg-slate-100'
-                }`}
-              >
-                {r === 'etudiant' ? 'Étudiant' : r === 'enseignant' ? 'Enseignant' : 'Admin'}
-              </button>
-            ))}
-          </div>
-
           <form onSubmit={submit} className="mt-5 space-y-4" noValidate>
             <label className="block text-sm font-medium">
-              Identifiant ENT
+              Identifiant ou e-mail
               <input
                 className={`${inputClass} mt-1`}
                 value={identifiant}
                 onChange={(e) => setIdentifiant(e.target.value)}
                 autoComplete="username"
-                placeholder={role === 'etudiant' ? 'oscar.lescot' : role === 'enseignant' ? 'm.dupuis' : 'admin.dsi'}
+                placeholder="prenom.nom"
               />
             </label>
 
-            <label className="block text-sm font-medium">
-              <span className="flex items-center justify-between">
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium">
                 Mot de passe
+              </label>
+              <div className="relative mt-1">
+                <input
+                  id="password"
+                  className={`${inputClass} pr-10`}
+                  type={show ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
                 <button
                   type="button"
-                  onClick={() => setShow((s) => !s)}
-                  className="flex items-center gap-1 text-xs font-normal text-muted hover:text-navy"
+                  onClick={() => setShow((v) => !v)}
+                  aria-label={show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  title={show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted hover:text-navy"
                 >
-                  {show ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  {show ? 'Masquer' : 'Afficher'}
+                  {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
-              </span>
-              <input
-                className={`${inputClass} mt-1`}
-                type={show ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-            </label>
+              </div>
+            </div>
 
             <div className="flex items-center justify-between text-xs">
               <label className="flex items-center gap-2">
@@ -174,20 +151,11 @@ export default function Connexion() {
             </button>
           </form>
 
-          <div className="my-5 flex items-center gap-3 text-xs text-muted">
-            <span className="h-px flex-1 bg-slate-300" />
-            ou
-            <span className="h-px flex-1 bg-slate-300" />
-          </div>
-
-          <button onClick={quickLogin} disabled={busy} className={`${buttonOutline} w-full`}>
-            Se connecter avec le compte UPJV
-          </button>
-
-          <p id="aide" className="mt-5 text-xs text-muted">
+          <p id="aide" className="mt-6 text-xs text-muted">
             Première visite ? Utilise tes identifiants de l’ENT : ton compte LevelUPJV est créé automatiquement.
           </p>
         </section>
+        </div>
       </main>
 
       <footer className="bg-navy text-xs text-white">
