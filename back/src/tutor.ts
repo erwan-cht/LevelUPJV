@@ -2,9 +2,9 @@
 //
 // Le tuteur reçoit l'énoncé, la requête de l'élève et un constat chiffré sur l'étape où elle s'écarte de la solution.
 // Il ne reçoit JAMAIS la requête de référence ni ses lignes : il ne peut donc pas la recopier, seulement guider.
-// Fournisseur d'IA : Gemini (GEMINI_API_KEY, palier gratuit) ou Claude (ANTHROPIC_API_KEY), au choix via TUTOR_PROVIDER
-// (« gemini », « claude » ou « none »). Sans clé, ou si l'appel échoue, un message construit à partir du même constat prend le relais.
-import Anthropic from '@anthropic-ai/sdk';
+// Le fournisseur d'IA (Gemini ou Claude) est géré par ./llm.ts. Sans clé, ou si l'appel échoue, un message construit
+// à partir du même constat prend le relais.
+import { generate } from './llm.js';
 import type { ExplainResult, Step } from './sqlsteps.js';
 
 export interface TutorReply {
@@ -13,23 +13,6 @@ export interface TutorReply {
   source: 'ai' | 'rules';
   /** Étape de la visualisation vers laquelle l'animation doit sauter. */
   stepIndex: number;
-}
-
-const CLAUDE_MODEL = 'claude-opus-5-5';
-// Identifiant à vérifier dans AI Studio (liste des modèles) : surchargeable sans toucher au code.
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
-
-type Provider = 'gemini' | 'claude';
-
-/** Fournisseur actif : choix explicite, sinon le premier dont la clé est présente. */
-function providerInUse(): Provider | null {
-  const wanted = (process.env.TUTOR_PROVIDER ?? '').toLowerCase();
-  if (wanted === 'none') return null;
-  if (wanted === 'gemini') return process.env.GEMINI_API_KEY ? 'gemini' : null;
-  if (wanted === 'claude') return process.env.ANTHROPIC_API_KEY ? 'claude' : null;
-  if (process.env.GEMINI_API_KEY) return 'gemini';
-  if (process.env.ANTHROPIC_API_KEY) return 'claude';
-  return null;
 }
 
 const SYSTEM = `Tu es le tuteur SQL d'une plateforme d'entraînement pour des étudiants de BUT Informatique.
@@ -92,45 +75,6 @@ function byRules(r: ExplainResult, f: { step: Step; stepIndex: number }): string
 }
 
 
-/** Gemini : API REST, clé dans l'en-tête (jamais dans l'URL, qui finit dans les journaux). */
-async function askGemini(prompt: string): Promise<string | null> {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY ?? '' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM }] },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 2000, temperature: 0.4 },
-    }),
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!res.ok) throw new Error(`Gemini ${res.status} : ${(await res.text()).slice(0, 200)}`);
-  const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
-  return parts.filter((p) => !p.thought).map((p) => p.text ?? '').join('').trim() || null;
-}
-
-/** Claude : refus de sécurité = pas de réponse (le repli prend le relais). */
-async function askClaude(prompt: string): Promise<string | null> {
-  const response = await new Anthropic().beta.messages.create({
-    model: CLAUDE_MODEL,
-    max_tokens: 1000,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    thinking: { type: 'adaptive' },
-    output_config: { effort: 'low' }, // réponse courte : inutile de réfléchir longtemps
-    system: SYSTEM,
-    messages: [{ role: 'user', content: prompt }],
-  });
-  if (response.stop_reason === 'refusal') return null;
-  return (
-    response.content
-      .flatMap((b) => (b.type === 'text' ? [b.text] : []))
-      .join("\n")
-      .trim() || null
-  );
-}
-
 /** Contenu envoyé au modèle : énoncé, requête de l'élève, constat chiffré. Jamais la solution. */
 export function promptFor(statement: string, query: string, result: ExplainResult): string | null {
   const f = findings(result);
@@ -154,15 +98,13 @@ export async function tutor(statement: string, query: string, result: ExplainRes
   const f = findings(result);
   if (!f) return null;
 
-  const provider = providerInUse();
   const prompt = promptFor(statement, query, result);
-  if (provider && prompt) {
+  if (prompt) {
     try {
-      const text = await (provider === 'gemini' ? askGemini(prompt) : askClaude(prompt));
+      const text = await generate(SYSTEM, [{ role: 'user', content: prompt }], 2000);
       if (text) return { text, source: 'ai', stepIndex: f.stepIndex };
-    } catch (e) {
-      // Quota, réseau, clé ou modèle invalide… : l'élève ne doit pas rester sans réponse.
-      console.error(`Tuteur IA (${provider}) indisponible :`, e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : e instanceof Error ? e.message : e);
+    } catch {
+      // Quota, réseau, clé ou modèle invalide… (déjà journalisé) : l'élève ne doit pas rester sans réponse.
     }
   }
   return { text: byRules(result, f), source: 'rules', stepIndex: f.stepIndex };

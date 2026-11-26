@@ -4,6 +4,7 @@ import Comptes from './pages/admin/Comptes';
 import Contenus from './pages/admin/Contenus';
 import Promotions from './pages/admin/Promotions';
 import Referentiel from './pages/admin/Referentiel';
+import Assistant from './pages/Assistant';
 import Classement from './pages/Classement';
 import Connexion from './pages/Connexion';
 import Dashboard from './pages/Dashboard';
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="classement" element={<Classement />} />
         <Route path="duels" element={<Duels />} />
         <Route path="duels/:id" element={<DuelLive />} />
+        <Route path="assistant" element={<Assistant />} />
         <Route path="profil" element={<Profil />} />
         <Route path="succes" element={<Succes />} />
         <Route path="parametres" element={<Parametres />} />

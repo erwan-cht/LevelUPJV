@@ -15,6 +15,7 @@ import {
 import { adminRouter } from './admin.js';
 import { explainAttempt } from './sqlsteps.js';
 import { tutor } from './tutor.js';
+import { chatRouter } from './chat.js';
 import { duelsRouter } from './duels.js';
 import { profileRouter } from './profile.js';
 import { describeTables, judge, runQuery } from './sql.js';
@@ -512,5 +513,6 @@ api.post('/challenges/:id/favorite', requireAuth('STUDENT'), async (req, res) =>
 
 api.use(profileRouter);
 api.use(duelsRouter);
+api.use(chatRouter);
 api.use('/teacher', teacherRouter);
 api.use('/admin', adminRouter);
