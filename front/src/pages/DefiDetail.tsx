@@ -196,20 +196,20 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
         </p>
       )}
 
+      <section className="overflow-hidden rounded-lg border border-sky-600 bg-white">
+        <h2 className="bg-sky-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">Énoncé</h2>
+        <div className="space-y-3 p-4 text-sm">
+          <p className="whitespace-pre-line">{challenge.statement.replace(/[*`]/g, '')}</p>
+          {challenge.gradable && (
+            <p className="rounded bg-panel p-2 text-xs italic text-muted">
+              Une seule requête SELECT. Ton résultat est comparé automatiquement au résultat attendu.
+            </p>
+          )}
+        </div>
+      </section>
+
       <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
         <div className="space-y-5">
-          <section className="overflow-hidden rounded-lg border border-sky-600 bg-white">
-            <h2 className="bg-sky-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">Énoncé</h2>
-            <div className="space-y-3 p-4 text-sm">
-              <p className="whitespace-pre-line">{challenge.statement.replace(/[*`]/g, '')}</p>
-              {challenge.gradable && (
-                <p className="rounded bg-panel p-2 text-xs italic text-muted">
-                  Une seule requête SELECT. Ton résultat est comparé automatiquement au résultat attendu.
-                </p>
-              )}
-            </div>
-          </section>
-
           {challenge.tables.length > 0 && (
             <section className="overflow-hidden rounded-lg border border-navy bg-white">
               <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">Tables disponibles</h2>
@@ -225,12 +225,12 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
           )}
         </div>
 
-        <div className="min-w-0 space-y-5">
-          <section className="overflow-hidden rounded-lg border border-navy bg-white">
+        <div className="flex min-w-0 flex-col gap-5">
+          <section className="flex flex-1 flex-col overflow-hidden rounded-lg border border-navy bg-white">
             <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
               {challenge.type === 'SQL' ? 'Votre requête SQL' : 'Votre réponse'}
             </h2>
-            <div className="p-4">
+            <div className="flex flex-1 flex-col p-4">
               <label className="sr-only" htmlFor="editor">Éditeur</label>
               <textarea
                 id="editor"
@@ -238,7 +238,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
                 onChange={(e) => setQuery(e.target.value)}
                 spellCheck={false}
                 rows={8}
-                className="w-full resize-y rounded-md bg-[#1b2238] p-4 font-mono text-xs leading-6 text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand"
+                className="min-h-48 w-full flex-1 resize-y rounded-md bg-[#1b2238] p-4 font-mono text-xs leading-6 text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand"
               />
               {!challenge.gradable && (
                 <p className="mt-2 text-xs italic text-muted">
@@ -260,58 +260,6 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
             </div>
           </section>
 
-          <section className={`overflow-hidden rounded-lg border bg-white ${passed ? 'border-green-600' : 'border-red-600'}`}>
-            <h2 className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white ${passed ? 'bg-green-600' : 'bg-red-600'}`}>
-              Résultat de l’exécution
-            </h2>
-            <div className="space-y-4 p-4" aria-live="polite">
-              {busy && <p className="text-sm text-muted">Exécution en cours…</p>}
-              {!busy && outcome.kind === 'idle' && (
-                <p className="text-sm text-muted">Exécute ou valide ta requête pour voir le résultat ici.</p>
-              )}
-
-              {!busy && outcome.kind === 'run' && (
-                outcome.result.error ? (
-                  <Alert tone="red">{outcome.result.error}</Alert>
-                ) : (
-                  <div>
-                    <p className="mb-1 text-xs font-semibold">VOTRE RÉSULTAT · {outcome.result.rows.length} ligne(s)</p>
-                    <DataTable columns={outcome.result.columns} rows={outcome.result.rows} />
-                  </div>
-                )
-              )}
-
-              {!busy && outcome.kind === 'attempt' && (
-                <>
-                  {outcome.status === 'PASSED' ? (
-                    <p className="flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm text-green-800">
-                      <CheckCircle2 className="h-4 w-4" /> {outcome.message}
-                      {outcome.pointsAwarded > 0
-                        ? ` +${outcome.pointsAwarded} pts${outcome.hintCost ? ` (${outcome.pointsAwarded + outcome.hintCost} − ${outcome.hintCost} d’indices)` : ''}`
-                        : outcome.hintCost
-                          ? ' (les indices ont consommé tout le gain)'
-                          : ' (points déjà obtenus)'}
-                    </p>
-                  ) : (
-                    <Alert tone="red">{outcome.message}</Alert>
-                  )}
-                  {comparison && (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <p className="mb-1 text-xs font-semibold text-green-700">RÉSULTAT ATTENDU · {comparison.expected!.rows.length} ligne(s)</p>
-                        <DataTable columns={comparison.expected!.columns} rows={comparison.expected!.rows} tone="bg-green-50" />
-                      </div>
-                      <div>
-                        <p className="mb-1 text-xs font-semibold text-red-700">VOTRE RÉSULTAT · {comparison.obtained!.rows.length} ligne(s)</p>
-                        <DataTable columns={comparison.obtained!.columns} rows={comparison.obtained!.rows} tone={passed ? 'bg-green-50' : 'bg-red-50'} />
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
-
           {viz && (
             <SqlVisualizer
               key={viz.id}
@@ -324,6 +272,58 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
           )}
         </div>
       </div>
+
+      <section className={`overflow-hidden rounded-lg border bg-white ${passed ? 'border-green-600' : 'border-red-600'}`}>
+        <h2 className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white ${passed ? 'bg-green-600' : 'bg-red-600'}`}>
+          Résultat de l’exécution
+        </h2>
+        <div className="space-y-4 p-4" aria-live="polite">
+          {busy && <p className="text-sm text-muted">Exécution en cours…</p>}
+          {!busy && outcome.kind === 'idle' && (
+            <p className="text-sm text-muted">Exécute ou valide ta requête pour voir le résultat ici.</p>
+          )}
+
+          {!busy && outcome.kind === 'run' && (
+            outcome.result.error ? (
+              <Alert tone="red">{outcome.result.error}</Alert>
+            ) : (
+              <div>
+                <p className="mb-1 text-xs font-semibold">VOTRE RÉSULTAT · {outcome.result.rows.length} ligne(s)</p>
+                <DataTable columns={outcome.result.columns} rows={outcome.result.rows} />
+              </div>
+            )
+          )}
+
+          {!busy && outcome.kind === 'attempt' && (
+            <>
+              {outcome.status === 'PASSED' ? (
+                <p className="flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm text-green-800">
+                  <CheckCircle2 className="h-4 w-4" /> {outcome.message}
+                  {outcome.pointsAwarded > 0
+                    ? ` +${outcome.pointsAwarded} pts${outcome.hintCost ? ` (${outcome.pointsAwarded + outcome.hintCost} − ${outcome.hintCost} d’indices)` : ''}`
+                    : outcome.hintCost
+                      ? ' (les indices ont consommé tout le gain)'
+                      : ' (points déjà obtenus)'}
+                </p>
+              ) : (
+                <Alert tone="red">{outcome.message}</Alert>
+              )}
+              {comparison && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-1 text-xs font-semibold text-green-700">RÉSULTAT ATTENDU · {comparison.expected!.rows.length} ligne(s)</p>
+                    <DataTable columns={comparison.expected!.columns} rows={comparison.expected!.rows} tone="bg-green-50" />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs font-semibold text-red-700">VOTRE RÉSULTAT · {comparison.obtained!.rows.length} ligne(s)</p>
+                    <DataTable columns={comparison.obtained!.columns} rows={comparison.obtained!.rows} tone={passed ? 'bg-green-50' : 'bg-red-50'} />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
 
       {!solved && (
       <section className="overflow-hidden rounded-lg border border-navy bg-white">

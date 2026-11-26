@@ -42,14 +42,14 @@ cp .env.example .env          # une seule fois
 npm run db:up                 # démarre PostgreSQL dans Docker
 npm run db:migrate           # applique les migrations (crée ou met à jour les tables)
 npm run db:generate           # génère le client Prisma (nécessaire avant le seed et l'API)
-npm run db:seed               # données de démonstration (comptes : <prénom>.<nom>@etu.example / levelup123)
+npm run db:seed               # comptes de démonstration vides, promotions, défis (comptes : <prénom>.<nom>@etu.example / levelup123)
 npm run db:studio             # interface web pour voir les données
 ```
 
 Le schéma est dans `back/prisma/schema.prisma`. Après l'avoir modifié :
 `npm run db:migrate -- --name <description>`, puis commiter le dossier `prisma/migrations/`.
 
-⚠️ `npm run db:seed` **remet les comptes de démonstration à zéro** (mot de passe, activité, badges, duels). Les comptes et défis créés à la main ne sont pas touchés.
+⚠️ `npm run db:seed` **remet les comptes de démonstration à zéro** (mot de passe, points, activité, badges, duels). Il ne génère aucun faux score : les comptes repartent avec 0 point. Les comptes et défis créés à la main ne sont pas touchés.
 
 ## Documentation
 

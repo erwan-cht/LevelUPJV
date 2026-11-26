@@ -215,7 +215,7 @@ Autres scripts : `db:down` (arrête la base), `db:generate` (client Prisma), `db
 
 Énumérations : `Role`, `AccountStatus`, `ContentStatus`, `Difficulty`, `ChallengeType`, `Subject`, `AttemptStatus`, `DuelStatus`, `ArenaStatus`.
 
-**Le seed remet les comptes de démonstration à zéro à chaque lancement** (mot de passe, statut, groupe, activité, badges, duels). Les comptes créés à la main et les défis créés par les enseignants ne sont pas touchés. Comptes : `oscar.lescot` (étudiant), `m.dupuis` (enseignant), `admin.dsi` (administrateur), mot de passe `levelup123` ou la valeur de `SEED_PASSWORD`. L'activité (tentatives, points, séries) est générée de façon déterministe : points, rang et statistiques de promo sont cohérents entre eux.
+**Le seed remet les comptes de démonstration à zéro à chaque lancement** (mot de passe, statut, groupe, points, activité, badges, duels). Les comptes créés à la main et les défis créés par les enseignants ne sont pas touchés. Comptes : `oscar.lescot` (étudiant), `m.dupuis` (enseignant), `admin.dsi` (administrateur), mot de passe `levelup123` ou la valeur de `SEED_PASSWORD`. Le seed ne génère aucune activité : les comptes de démonstration repartent avec 0 point, sans tentative, badge ni duel. Les points, classements et statistiques ne reflètent donc que de vraies actions.
 
 ## 6 ter. API (`back/src/`)
 

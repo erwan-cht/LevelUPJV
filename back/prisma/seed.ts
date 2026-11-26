@@ -1,23 +1,16 @@
 // Données de développement : npm run db:seed
 //
+// Crée les comptes de démonstration, les promotions, les groupes et les défis, SANS activité inventée :
+// les comptes repartent avec 0 point, sans tentative, badge ni duel.
 // ⚠️ Remet les comptes de démonstration à leur état initial à chaque lancement (mot de passe, statut,
-// groupe, activité, badges, duels). Les comptes créés à la main et les défis créés par les enseignants
+// groupe, points et activité remis à zéro). Les comptes créés à la main et les défis créés par les enseignants
 // ne sont pas touchés. Comptes de test : mot de passe « levelup123 » (ou SEED_PASSWORD).
 import bcrypt from 'bcryptjs';
-import { syncBadges } from '../src/badges.js';
 import { prisma } from '../src/db.js';
 import { slugify } from '../src/format.js';
 
 const PASSWORD = process.env.SEED_PASSWORD ?? 'levelup123';
 const DAY = 86_400_000;
-
-// Générateur pseudo-aléatoire déterministe : la démo est identique d'un lancement à l'autre.
-const rng = (seed: number) => () => {
-  seed = (seed + 0x6d2b79f5) | 0;
-  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
 
 // ───────────── Compétences du référentiel BUT ─────────────
 const competences = [
@@ -112,29 +105,29 @@ const challenges: Seed[] = [
 
 // ───────────── Comptes ─────────────
 type Status = 'ACTIVE' | 'SUSPENDED' | 'PENDING';
-// prénom, nom, promo (code), groupe, points visés, statut, jours d'inactivité minimum
-const students: [string, string, string, number, number, Status, number][] = [
-  ['Léa', 'Marchand', 'BUT 2', 2, 3120, 'ACTIVE', 0],
-  ['Hugo', 'Bernard', 'BUT 2', 1, 2980, 'ACTIVE', 0],
-  ['Camille', 'Dubois', 'BUT 2', 3, 2760, 'ACTIVE', 0],
-  ['Nathan', 'Leroy', 'BUT 2', 1, 2710, 'ACTIVE', 0],
-  ['Manon', 'Fabre', 'BUT 2', 2, 2680, 'ACTIVE', 0],
-  ['Louis', 'Petit', 'BUT 2', 3, 2640, 'ACTIVE', 0],
-  ['Sarah', 'Morel', 'BUT 2', 2, 2590, 'ACTIVE', 0],
-  ['Tom', 'Girard', 'BUT 2', 1, 2540, 'ACTIVE', 0],
-  ['Emma', 'Roux', 'BUT 2', 3, 2510, 'ACTIVE', 0],
-  ['Lucas', 'André', 'BUT 2', 1, 2490, 'ACTIVE', 0],
-  ['Jade', 'Henry', 'BUT 2', 2, 2465, 'ACTIVE', 0],
-  ['Oscar', 'Lescot', 'BUT 2', 2, 2450, 'ACTIVE', 0],
-  ['Enzo', 'Lopez', 'BUT 2', 2, 2420, 'ACTIVE', 0],
-  ['Inès', 'Robin', 'BUT 2', 2, 2210, 'ACTIVE', 0],
-  ['Théo', 'Blanc', 'BUT 2', 3, 2150, 'ACTIVE', 0],
-  ['Chloé', 'Martin', 'BUT 2', 1, 2080, 'ACTIVE', 0],
-  ['Yanis', 'Blanc', 'BUT 1', 1, 620, 'ACTIVE', 9],
-  ['Thomas', 'Roux', 'BUT 3', 1, 900, 'ACTIVE', 12],
-  ['Mehdi', 'Aubert', 'BUT 3', 2, 300, 'SUSPENDED', 20],
-  ['Alice', 'Vasseur', 'BUT 1', 2, 0, 'PENDING', 0],
-  ['Rayan', 'Caron', 'BUT 1', 2, 0, 'PENDING', 0],
+// prénom, nom, promo (code), groupe, statut
+const students: [string, string, string, number, Status][] = [
+  ['Léa', 'Marchand', 'BUT 2', 2, 'ACTIVE'],
+  ['Hugo', 'Bernard', 'BUT 2', 1, 'ACTIVE'],
+  ['Camille', 'Dubois', 'BUT 2', 3, 'ACTIVE'],
+  ['Nathan', 'Leroy', 'BUT 2', 1, 'ACTIVE'],
+  ['Manon', 'Fabre', 'BUT 2', 2, 'ACTIVE'],
+  ['Louis', 'Petit', 'BUT 2', 3, 'ACTIVE'],
+  ['Sarah', 'Morel', 'BUT 2', 2, 'ACTIVE'],
+  ['Tom', 'Girard', 'BUT 2', 1, 'ACTIVE'],
+  ['Emma', 'Roux', 'BUT 2', 3, 'ACTIVE'],
+  ['Lucas', 'André', 'BUT 2', 1, 'ACTIVE'],
+  ['Jade', 'Henry', 'BUT 2', 2, 'ACTIVE'],
+  ['Oscar', 'Lescot', 'BUT 2', 2, 'ACTIVE'],
+  ['Enzo', 'Lopez', 'BUT 2', 2, 'ACTIVE'],
+  ['Inès', 'Robin', 'BUT 2', 2, 'ACTIVE'],
+  ['Théo', 'Blanc', 'BUT 2', 3, 'ACTIVE'],
+  ['Chloé', 'Martin', 'BUT 2', 1, 'ACTIVE'],
+  ['Yanis', 'Blanc', 'BUT 1', 1, 'ACTIVE'],
+  ['Thomas', 'Roux', 'BUT 3', 1, 'ACTIVE'],
+  ['Mehdi', 'Aubert', 'BUT 3', 2, 'SUSPENDED'],
+  ['Alice', 'Vasseur', 'BUT 1', 2, 'PENDING'],
+  ['Rayan', 'Caron', 'BUT 1', 2, 'PENDING'],
 ];
 
 const teachers = [
@@ -216,14 +209,9 @@ async function main() {
     });
   }
 
-  // Connexions récentes des enseignants et de l'administrateur
-  for (const [n, email] of [...teachers.map((t) => t.email), 'admin.dsi@iut.example'].entries()) {
-    await prisma.user.update({ where: { email }, data: { lastLoginAt: new Date(Date.now() - (n + 1) * 5 * 3600_000) } });
-  }
-
   // Étudiants
   const demoIds: number[] = [];
-  for (const [firstName, lastName, promo, g, , status] of students) {
+  for (const [firstName, lastName, promo, g, status] of students) {
     const email = emailOf(firstName, lastName);
     const joined = status === 'PENDING' ? new Date(Date.now() - (firstName === 'Alice' ? 3 : 1) * DAY) : new Date('2026-09-02T09:00:00Z');
     const data = { createdAt: joined, firstName, lastName, role: 'STUDENT' as const, status, groupId: groupId.get(`${promo}|${g}`)!, passwordHash };
@@ -235,191 +223,22 @@ async function main() {
     demoIds.push(u.id);
   }
 
-  // ───────────── Activité de démonstration (remise à zéro des comptes de démo) ─────────────
+  // ───────────── Remise à zéro des comptes de démonstration ─────────────
+  // Aucune activité n'est inventée : points, XP, série, badges, tentatives et duels repartent de zéro.
   await prisma.duel.deleteMany({ where: { OR: [{ challengerId: { in: demoIds } }, { opponentId: { in: demoIds } }] } });
   await prisma.attempt.deleteMany({ where: { userId: { in: demoIds } } });
   await prisma.pointEvent.deleteMany({ where: { userId: { in: demoIds } } });
   await prisma.userBadge.deleteMany({ where: { userId: { in: demoIds } } });
   await prisma.hint.deleteMany({ where: { userId: { in: demoIds } } });
   await prisma.favorite.deleteMany({ where: { userId: { in: demoIds } } });
+  await prisma.user.updateMany({
+    where: { id: { in: demoIds } },
+    data: { points: 0, xp: 0, streakDays: 0, bestStreak: 0, lastActiveDay: null, lastSeenAt: null, lastLoginAt: null },
+  });
 
   const catalog = await prisma.challenge.findMany({ where: { status: 'PUBLISHED' }, orderBy: { id: 'asc' } });
   const byTitle = new Map(catalog.map((c) => [c.title, c]));
   const now = Date.now();
-
-  for (const [i, [firstName, lastName, , , target, status, idle]] of students.entries()) {
-    const user = await prisma.user.findUniqueOrThrow({ where: { email: emailOf(firstName, lastName) } });
-    if (target === 0 || status === 'PENDING') {
-      await prisma.user.update({ where: { id: user.id }, data: { points: 0, xp: 0, streakDays: 0, bestStreak: 0, lastActiveDay: null } });
-      continue;
-    }
-    const rand = rng(1000 + i * 97);
-    const shuffle = <T,>(a: T[]) => [...a].sort(() => rand() - 0.5);
-    const isOscar = firstName === 'Oscar';
-
-    // Défis réussis : une part du catalogue proportionnelle aux points visés, sans dépasser la cible
-    let pool = shuffle(catalog);
-    if (firstName === 'Enzo') pool = pool.filter((c) => c.subject !== 'DATABASES'); // bloqué en bases de données
-    // Oscar n'a pas encore fait les défis recommandés par son enseignante.
-    if (isOscar) {
-      const todo = ['Requêtes imbriquées', 'Jointures externes (LEFT JOIN)', 'Statistiques par ville', 'Jointures et sous-requêtes', 'Formulaire responsive', "Tri d'un tableau"];
-      pool = pool.filter((c) => !todo.includes(c.title));
-    }
-    if (firstName === 'Jade') pool = pool.filter((c) => c.title !== 'Récursivité : la factorielle');
-    let k = Math.min(pool.length, Math.round(catalog.length * (0.2 + 0.5 * Math.min(target / 3200, 1))));
-    let solved = pool.slice(0, k);
-    while (solved.reduce((s, c) => s + c.basePoints, 0) > target && solved.length > 0) solved = solved.slice(0, --k);
-
-    const events: { points: number; at: Date; reason: string }[] = [];
-    const attempts: { challengeId: number; status: 'PASSED' | 'FAILED'; at: Date; passed: number }[] = [];
-    const TOTAL = 4;
-    const minDay = isOscar ? 8 : idle > 0 ? idle : 1;
-
-    for (const c of solved) {
-      const day = minDay + Math.floor(Math.pow(rand(), 1.3) * (60 - minDay));
-      const hour = rand() < 0.04 ? Math.floor(rand() * 5) : 8 + Math.floor(rand() * 14);
-      const done = new Date(now - day * DAY);
-      done.setHours(hour, Math.floor(rand() * 60), 0, 0);
-      const fails = c.difficulty === 'HARD' ? 1 + Math.floor(rand() * 3) : Math.floor(rand() * 3);
-      for (let f = fails; f > 0; f--) {
-        attempts.push({ challengeId: c.id, status: 'FAILED', at: new Date(done.getTime() - f * (3 + Math.floor(rand() * 9)) * 60_000), passed: Math.floor(rand() * TOTAL) });
-      }
-      attempts.push({ challengeId: c.id, status: 'PASSED', at: done, passed: TOTAL });
-      events.push({ points: c.basePoints, at: done, reason: `demo:challenge:${c.id}` });
-    }
-
-    // Élèves « en difficulté » : de nombreux essais ratés, sans réussite
-    const stuck = (titles: string[], count: number) => {
-      for (const title of titles) {
-        const c = byTitle.get(title);
-        if (!c) continue;
-        for (let n = 0; n < count; n++) {
-          attempts.push({ challengeId: c.id, status: 'FAILED', at: new Date(now - (2 + n) * DAY - rand() * DAY), passed: Math.floor(rand() * 2) });
-        }
-      }
-    };
-    if (isOscar) {
-      // Défis commencés : une tentative ratée avec une partie des tests réussis.
-      const started: [string, number, number][] = [['Jointures et sous-requêtes', 3, DAY], ['Formulaire responsive', 1, 3 * 3600_000]];
-      for (const [title, passed, ago] of started) {
-        const c = byTitle.get(title);
-        if (c) attempts.push({ challengeId: c.id, status: 'FAILED', at: new Date(now - ago), passed });
-      }
-    }
-    if (firstName === 'Enzo') stuck(['Sélections simples', 'Jointures et sous-requêtes'], 5);
-    if (firstName === 'Jade') stuck(['Récursivité : la factorielle'], 4);
-
-    // Semaine type d'Oscar (la maquette) : 50, 60, 120, 90, 60 points sur les 5 derniers jours
-    if (isOscar) {
-      [0, 0, 50, 60, 120, 90, 60].forEach((points, n) => {
-        if (points === 0) return;
-        const at = new Date(now - (6 - n) * DAY);
-        at.setHours(12, 0, 0, 0);
-        if (at.getTime() > now) at.setTime(now - 60_000);
-        events.push({ points, at, reason: 'demo:week' });
-      });
-    }
-
-    // Le reste des points : bonus réguliers (séries, badges, duels…) répartis sur deux mois
-    let rest = target - events.reduce((s, e) => s + e.points, 0);
-    while (rest > 0) {
-      const points = Math.min(rest, 10 + Math.floor(rand() * 4) * 10);
-      const day = minDay + Math.floor(Math.pow(rand(), 1.8) * (60 - minDay));
-      const at = new Date(now - day * DAY);
-      at.setHours(9 + Math.floor(rand() * 12), Math.floor(rand() * 60), 0, 0);
-      events.push({ points, at, reason: 'demo:bonus' });
-      rest -= points;
-    }
-
-    // Gains des 7 derniers jours plafonnés (hors Oscar) : l'évolution du rang reste plausible.
-    if (!isOscar) {
-      const cap = 120 + Math.floor(rand() * 100);
-      const recent = () => events.filter((e) => e.at.getTime() >= now - 7 * DAY);
-      while (recent().reduce((s, e) => s + e.points, 0) > cap) {
-        const latest = recent().sort((a, b) => b.at.getTime() - a.at.getTime())[0];
-        const shift = (8 + Math.floor(rand() * 7)) * DAY;
-        const before = latest.at.getTime();
-        latest.at = new Date(before - shift);
-        const m = /demo:challenge:(\d+)/.exec(latest.reason);
-        if (m) for (const a of attempts) if (a.challengeId === Number(m[1]) && Math.abs(a.at.getTime() - before) < DAY) a.at = new Date(a.at.getTime() - shift);
-      }
-    }
-
-    await prisma.attempt.createMany({
-      data: attempts.map((a) => ({
-        userId: user.id,
-        challengeId: a.challengeId,
-        answer: '-- démo',
-        status: a.status,
-        testsPassed: a.passed,
-        testsTotal: TOTAL,
-        createdAt: a.at,
-      })),
-    });
-    await prisma.pointEvent.createMany({ data: events.map((e) => ({ userId: user.id, points: e.points, xp: e.points, reason: e.reason, createdAt: e.at })) });
-
-    // Série : jours consécutifs avec des points (en cours si le dernier jour est aujourd'hui ou hier)
-    const days = [...new Set(events.map((e) => Math.floor(new Date(e.at).setHours(0, 0, 0, 0) / DAY)))].sort((a, b) => a - b);
-    let best = 0;
-    let run = 0;
-    days.forEach((d, n) => {
-      run = n > 0 && d === days[n - 1] + 1 ? run + 1 : 1;
-      best = Math.max(best, run);
-    });
-    const today = Math.floor(new Date().setHours(0, 0, 0, 0) / DAY);
-    const last = days[days.length - 1];
-    const current = last >= today - 1 ? run : 0;
-    const total = events.reduce((s, e) => s + e.points, 0);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        points: total,
-        xp: total,
-        streakDays: current,
-        bestStreak: best,
-        lastActiveDay: new Date(last * DAY),
-        lastSeenAt: null,
-        lastLoginAt: new Date(Math.max(...events.map((e) => e.at.getTime()))),
-      },
-    });
-  }
-
-  // Badges gagnés (règles évaluées sur l'activité), puis récompenses réclamées pour une partie d'entre eux
-  for (const [i, [firstName, lastName, , , target]] of students.entries()) {
-    if (target === 0) continue;
-    const user = await prisma.user.findUniqueOrThrow({ where: { email: emailOf(firstName, lastName) } });
-    const states = await syncBadges(user.id);
-    const earned = states.filter((b) => b.earned);
-    const rand = rng(5000 + i);
-    const isOscar = firstName === 'Oscar';
-    for (const [n, b] of earned.entries()) {
-      // Oscar garde ses deux premiers badges à réclamer, pour montrer le bouton « Réclamer ».
-      const claimed = isOscar ? n >= 2 : rand() < 0.6;
-      await prisma.userBadge.update({ where: { userId_badgeId: { userId: user.id, badgeId: b.id } }, data: { claimed } });
-    }
-  }
-
-  // Duels de démonstration pour Oscar : une défaite contre Léa et une invitation de Hugo
-  const byName = (f: string, l: string) => prisma.user.findUniqueOrThrow({ where: { email: emailOf(f, l) } });
-  const [oscar, lea, hugo] = await Promise.all([byName('Oscar', 'Lescot'), byName('Léa', 'Marchand'), byName('Hugo', 'Bernard')]);
-  const sqlChallenge = catalog.find((c) => c.type === 'SQL' && c.difficulty === 'EASY' && c.solutionSql);
-  const mediumSql = catalog.find((c) => c.type === 'SQL' && c.difficulty === 'MEDIUM' && c.solutionSql);
-  if (sqlChallenge && mediumSql) {
-    const start = new Date(now - 2 * DAY);
-    const duel = await prisma.duel.create({
-      data: {
-        challengerId: lea.id, opponentId: oscar.id, challengeId: sqlChallenge.id, status: 'FINISHED', winnerId: lea.id,
-        ranked: true, stakePoints: 60, startedAt: start, finishedAt: new Date(start.getTime() + 5 * 60_000), createdAt: start,
-      },
-    });
-    await prisma.duelEvent.createMany({
-      data: [
-        { duelId: duel.id, text: 'Le duel a commencé.', createdAt: start },
-        { duelId: duel.id, userId: lea.id, text: 'Solution validée : victoire !', createdAt: new Date(start.getTime() + 5 * 60_000) },
-      ],
-    });
-    await prisma.duel.create({ data: { challengerId: hugo.id, opponentId: oscar.id, challengeId: mediumSql.id, ranked: true, stakePoints: 60 } });
-  }
 
   // Un défi recommandé par l'enseignante au groupe d'Oscar (une seule fois)
   const recommended = byTitle.get('Requêtes imbriquées');
