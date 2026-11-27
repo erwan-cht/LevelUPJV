@@ -3,8 +3,17 @@ import { Fragment, type ReactNode } from 'react';
 // Rendu Markdown minimal et sûr pour les réponses de l'assistant : blocs de code, listes, `code` et **gras**.
 // Tout passe par des éléments React (jamais de HTML brut), donc rien de ce que renvoie le modèle ne peut injecter de balise.
 
-function inline(text: string): ReactNode[] {
-  return text.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\s][^*\n]*\*)/g).map((part, i) => {
+function inline(text: string, onCite?: (page: number) => void): ReactNode[] {
+  const cite = /^\[p\.\s*(\d+)(?:\s*[-–]\s*(\d+))?\]$/;
+  return text.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\s][^*\n]*\*|\[p\.\s*\d+(?:\s*[-–]\s*\d+)?\])/g).map((part, i) => {
+    const c = onCite ? cite.exec(part) : null;
+    if (c) {
+      return (
+        <button key={i} type="button" onClick={() => onCite?.(Number(c[1]))} title="Voir cette diapositive du cours" className="mx-0.5 inline-flex items-center rounded-full bg-brand-light px-2 py-0.5 align-baseline text-[11px] font-semibold text-brand hover:bg-brand hover:text-white">
+          p. {c[1]}{c[2] ? `–${c[2]}` : ''}
+        </button>
+      );
+    }
     if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
       return (
         <code key={i} className="rounded bg-slate-200 px-1 py-0.5 font-mono text-[0.85em]">
@@ -60,7 +69,7 @@ function parse(source: string): Block[] {
   return blocks;
 }
 
-export default function Markdown({ text }: { text: string }) {
+export default function Markdown({ text, onCite }: { text: string; onCite?: (page: number) => void }) {
   return (
     <div className="space-y-2 text-sm leading-6">
       {parse(text).map((b, i) => {
@@ -76,14 +85,14 @@ export default function Markdown({ text }: { text: string }) {
           return (
             <Tag key={i} className={`space-y-1 pl-5 ${b.ordered ? 'list-decimal' : 'list-disc'}`}>
               {b.items.map((it, j) => (
-                <li key={j}>{inline(it)}</li>
+                <li key={j}>{inline(it, onCite)}</li>
               ))}
             </Tag>
           );
         }
         return (
           <p key={i} className="whitespace-pre-line">
-            {inline(b.text)}
+            {inline(b.text, onCite)}
           </p>
         );
       })}

@@ -16,6 +16,7 @@ import MotDePasse from './pages/MotDePasse';
 import MotDePasseOublie from './pages/MotDePasseOublie';
 import Parametres from './pages/Parametres';
 import Profil from './pages/Profil';
+import Quiz from './pages/Quiz';
 import Succes from './pages/Succes';
 import Aide from './pages/teacher/Aide';
 import Competences from './pages/teacher/Competences';
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="duels" element={<Duels />} />
         <Route path="duels/:id" element={<DuelLive />} />
         <Route path="assistant" element={<Assistant />} />
+        <Route path="quiz" element={<Quiz />} />
         <Route path="profil" element={<Profil />} />
         <Route path="succes" element={<Succes />} />
         <Route path="parametres" element={<Parametres />} />

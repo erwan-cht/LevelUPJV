@@ -32,6 +32,8 @@ export interface Step {
   sql: string;
   /** Explication en français, avec les compteurs réels. */
   explain: string;
+  /** JOIN : tables séparées par des virgules (syntaxe du cours) : produit cartésien, filtré ensuite par le WHERE. */
+  comma?: boolean;
   tables?: StepTable[];
   columns?: string[];
   rows?: string[][];
@@ -268,11 +270,16 @@ export function explain(setupSql: string, query: string): Explanation {
     // 2. JOIN : lignes combinées
     const joined = db.all(`SELECT ${proj} FROM ${parts.from}`);
     if (refs.length > 1) {
+      // « FROM R1, R2 WHERE R1.a = R2.a » (syntaxe du cours) : toutes les combinaisons d'abord, le WHERE ne garde que les bonnes.
+      const comma = !/\bjoin\b/i.test(parts.from);
       steps.push({
         kind: 'join',
-        title: 'JOIN',
+        title: comma ? 'PRODUIT CARTÉSIEN' : 'JOIN',
         sql: `FROM ${parts.from}`,
-        explain: `Les lignes des tables sont associées selon la condition de jointure : ${plural(joined.rows.length, 'ligne obtenue', 'lignes obtenues')}.`,
+        comma,
+        explain: comma
+          ? `Chaque ligne de ${refs[0].name} est associée à chaque ligne des autres tables (produit cartésien) : ${plural(joined.rows.length, 'combinaison', 'combinaisons')}.${parts.where ? ' Le WHERE va ensuite ne garder que celles qui vont ensemble : c’est ça, la jointure.' : ' Sans condition de jointure, on garde toutes les combinaisons.'}`
+          : `Les lignes des tables sont associées selon la condition de jointure : ${plural(joined.rows.length, 'ligne obtenue', 'lignes obtenues')}.`,
         columns: labels,
         rows: cut(joined.rows).map((x) => x.map(cell)),
         total: joined.rows.length,
@@ -465,7 +472,22 @@ export function explainAttempt(setupSql: string, solutionSql: string | null, ans
   const ref = explain(setupSql, solutionSql);
   if (!ref.supported || ref.error) return out;
 
+  // Jointure « FROM R1, R2 WHERE … » d'un côté, « JOIN … ON … » de l'autre : deux écritures du même calcul.
+  // Les étapes intermédiaires (JOIN, WHERE) ne sont alors pas comparables ; on compare la suite.
+  const mj = mine.steps.find((s) => s.kind === 'join');
+  const rj = ref.steps.find((s) => s.kind === 'join');
+  const otherStyle = Boolean(mj && rj && Boolean(mj.comma) !== Boolean(rj.comma));
+
+  // Produit cartésien sans condition de jointure : l'erreur classique, et la plus parlante à montrer.
+  if (mj?.comma && !mine.steps.some((s) => s.kind === 'where') && rj) {
+    out.divergeAt = mine.steps.indexOf(mj);
+    out.divergeNote = 'Il manque la condition de jointure : sans elle, chaque ligne est associée à toutes les autres (produit cartésien).';
+    out.expectedStep = rj;
+    return out;
+  }
+
   for (const kind of ORDER) {
+    if (otherStyle && (kind === 'join' || kind === 'where')) continue;
     const a = mine.steps.find((s) => s.kind === kind);
     const b = ref.steps.find((s) => s.kind === kind);
     if (!a && !b) continue;
