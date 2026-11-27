@@ -4,6 +4,10 @@ import Comptes from './pages/admin/Comptes';
 import Contenus from './pages/admin/Contenus';
 import Promotions from './pages/admin/Promotions';
 import Referentiel from './pages/admin/Referentiel';
+import ArenaHost from './arena/ArenaHost';
+import ArenaJoin from './arena/ArenaJoin';
+import ArenaLauncher from './arena/ArenaLauncher';
+import ArenaPlay from './arena/ArenaPlay';
 import Assistant from './pages/Assistant';
 import Classement from './pages/Classement';
 import Connexion from './pages/Connexion';
@@ -38,6 +42,8 @@ export default function App() {
         <Route path="duels/:id" element={<DuelLive />} />
         <Route path="assistant" element={<Assistant />} />
         <Route path="quiz" element={<Quiz />} />
+        <Route path="arene" element={<ArenaJoin />} />
+        <Route path="arene/:code" element={<ArenaPlay />} />
         <Route path="profil" element={<Profil />} />
         <Route path="succes" element={<Succes />} />
         <Route path="parametres" element={<Parametres />} />
@@ -47,6 +53,8 @@ export default function App() {
       <Route path="enseignant" element={<TeacherLayout />}>
         <Route index element={<MesPromos />} />
         <Route path="challenges" element={<CreerDefi />} />
+        <Route path="arene" element={<ArenaLauncher />} />
+        <Route path="arene/:code" element={<ArenaHost />} />
         <Route path="competences" element={<Competences />} />
         <Route path="aide" element={<Aide />} />
         <Route path="parametres" element={<Parametres />} />

@@ -139,3 +139,19 @@ test('mauvaise condition à la virgule, solution à la virgule aussi : comparée
   assert.equal(r.passed, false);
   assert.equal(r.steps[r.divergeAt ?? -1].kind, 'where');
 });
+
+test('étape fautive pour l’analyse : un WHERE oublié est un problème de WHERE, pas de SELECT', () => {
+  const sol = "SELECT nom FROM clients WHERE ville = 'Amiens' ORDER BY nom";
+  const r = explainAttempt(SHOP, sol, 'SELECT nom FROM clients ORDER BY nom');
+  assert.equal(r.divergeKind, 'where');
+  assert.equal(r.steps[r.divergeAt ?? -1].kind, 'select'); // l'animation, elle, s'arrête sur l'étape suivante
+});
+
+test('étape fautive : JOIN oublié, HAVING oublié, produit cartésien', () => {
+  const left = 'SELECT c.nom, COUNT(o.id) AS nb FROM clients c LEFT JOIN commandes o ON o.client_id = c.id GROUP BY c.id, c.nom';
+  assert.equal(explainAttempt(SHOP, left, left.replace('LEFT JOIN', 'JOIN')).divergeKind, 'join');
+  const having = 'SELECT c.ville, SUM(o.montant) AS total FROM clients c JOIN commandes o ON o.client_id = c.id GROUP BY c.ville HAVING SUM(o.montant) > 80';
+  assert.equal(explainAttempt(SHOP, having, having.replace(' HAVING SUM(o.montant) > 80', '')).divergeKind, 'having');
+  const sol = 'SELECT c.nom, o.montant FROM clients c JOIN commandes o ON o.client_id = c.id';
+  assert.equal(explainAttempt(SHOP, sol, 'SELECT c.nom, o.montant FROM clients c, commandes o').divergeKind, 'join');
+});

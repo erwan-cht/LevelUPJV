@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { CheckCircle2, Eye, EyeOff, Swords, Trophy, Zap } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { homeFor, useAuth } from '../auth';
+import { landingFor, useAuth } from '../auth';
 import { ApiError } from '../api';
 import Logo from '../components/layout/Logo';
 import { buttonBrand, inputClass } from '../components/ui';
@@ -22,7 +22,7 @@ export default function Connexion() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (current) return <Navigate to={homeFor(current)} replace />;
+  if (current) return <Navigate to={landingFor(current)} replace />;
 
   const tryLogin = async (id: string, pwd: string) => {
     setError('');
@@ -30,7 +30,7 @@ export default function Connexion() {
     try {
       // Le rôle est celui du compte en base : on redirige vers l’espace correspondant.
       const got = await login(id, pwd);
-      navigate(homeFor(got), { replace: true });
+      navigate(landingFor(got), { replace: true });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Connexion impossible.');
     } finally {

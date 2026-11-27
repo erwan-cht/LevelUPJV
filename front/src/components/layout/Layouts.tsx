@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { homeFor, useAuth } from '../../auth';
+import { useEffect } from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { forgetNext, homeFor, rememberNext, useAuth } from '../../auth';
 import { AdminProvider } from '../../pages/admin/store';
 import { MeProvider, useMe } from '../../me';
 import Header, { studentNav, type NavItem } from '../Header';
@@ -32,7 +33,14 @@ function StudentShell() {
 /** Espace étudiant : redirige vers la connexion sans jeton, et vers l'accueil du bon rôle sinon. */
 export function StudentLayout() {
   const { role } = useAuth();
-  if (!role) return <Navigate to="/connexion" replace />;
+  const location = useLocation();
+  useEffect(() => {
+    if (role === 'etudiant') forgetNext(); // la page demandée avant la connexion est atteinte
+  }, [role]);
+  if (!role) {
+    rememberNext(location.pathname + location.search);
+    return <Navigate to="/connexion" replace />;
+  }
   if (role !== 'etudiant') return <Navigate to={homeFor(role)} replace />;
 
   return (
@@ -45,6 +53,7 @@ export function StudentLayout() {
 const teacherNav: NavItem[] = [
   { label: 'Mes promos', to: '/enseignant', end: true },
   { label: 'Challenges', to: '/enseignant/challenges' },
+  { label: 'Arène', to: '/enseignant/arene' },
   { label: 'Compétences', to: '/enseignant/competences' },
   { label: 'Aide', to: '/enseignant/aide' },
 ];

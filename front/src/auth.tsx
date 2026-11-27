@@ -4,6 +4,34 @@ import { UNAUTHORIZED_EVENT, api, getToken, setToken } from './api';
 export type Role = 'etudiant' | 'enseignant' | 'admin';
 
 /** Page d'accueil de chaque rôle après connexion. */
+const NEXT_KEY = 'levelupjv-next';
+
+/** Mémorise la page demandée avant la connexion (ex. le lien d'une arène scanné avec un téléphone déconnecté). */
+export const rememberNext = (path: string) => {
+  try {
+    sessionStorage.setItem(NEXT_KEY, path);
+  } catch {
+    /* stockage indisponible : on ira à l'accueil */
+  }
+};
+export const forgetNext = () => {
+  try {
+    sessionStorage.removeItem(NEXT_KEY);
+  } catch {
+    /* rien à faire */
+  }
+};
+/** Où aller après la connexion : la page demandée (étudiants, adresses internes seulement), sinon l'accueil du rôle. */
+export const landingFor = (role: Role) => {
+  try {
+    const next = sessionStorage.getItem(NEXT_KEY);
+    if (role === 'etudiant' && next && next.startsWith('/') && !next.startsWith('//')) return next;
+  } catch {
+    /* ignoré */
+  }
+  return homeFor(role);
+};
+
 export const homeFor = (role: Role) => (role === 'enseignant' ? '/enseignant' : role === 'admin' ? '/admin' : '/');
 
 interface AuthState {
