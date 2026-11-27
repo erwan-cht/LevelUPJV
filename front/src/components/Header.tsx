@@ -31,9 +31,11 @@ interface HeaderProps {
   settingsPath?: string;
   /** Photo de profil ; sans photo, une icône est affichée. */
   avatarUrl?: string | null;
+  /** Élément affiché avant le compteur (par exemple la cloche de notifications). */
+  extra?: React.ReactNode;
 }
 
-export default function Header({ links, chip, badge, home = '/', profilePath, settingsPath, avatarUrl }: HeaderProps) {
+export default function Header({ links, chip, badge, home = '/', profilePath, settingsPath, avatarUrl, extra }: HeaderProps) {
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const { logout } = useAuth();
@@ -67,6 +69,7 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
         </nav>
 
         <div className="relative ml-auto flex items-center gap-3 md:ml-0">
+          {extra}
           <span className="rounded-full bg-brand-light px-3 py-1 text-sm font-semibold">{chip}</span>
           <button
             className="flex items-center gap-1"

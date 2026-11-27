@@ -6,6 +6,7 @@ import { MeProvider, useMe } from '../../me';
 import Header, { studentNav, type NavItem } from '../Header';
 import { formatNumber } from '../ui';
 import Footer from './Footer';
+import NotificationBell from '../NotificationBell';
 
 /** Cadre commun : en-tête, contenu de la page, pied de page. */
 function Shell({ header, children }: { header: ReactNode; children: ReactNode }) {
@@ -22,7 +23,7 @@ function Shell({ header, children }: { header: ReactNode; children: ReactNode })
 function StudentShell() {
   const { me } = useMe();
   return (
-    <Shell header={<Header links={studentNav} chip={me ? `${formatNumber(me.points)} pts` : '… pts'} profilePath="/profil" settingsPath="/parametres" avatarUrl={me?.avatarUrl} />}>
+    <Shell header={<Header links={studentNav} chip={me ? `${formatNumber(me.points)} pts` : '… pts'} profilePath="/profil" settingsPath="/parametres" avatarUrl={me?.avatarUrl} extra={<NotificationBell />} />}>
       <Outlet />
     </Shell>
   );

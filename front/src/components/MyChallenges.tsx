@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Flag } from 'lucide-react';
+import SubjectLogo from './SubjectLogo';
 import { Link } from 'react-router-dom';
-import type { Challenge, ChallengeStatus } from '../types';
+import type { Challenge, ChallengeStatus, Subject } from '../types';
 import { Card, CardTitle, ProgressBar, Tabs } from './ui';
 
 const tabs: { id: ChallengeStatus; label: string }[] = [
@@ -43,9 +43,7 @@ function ChallengeRow({ challenge: c }: { challenge: Challenge }) {
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-md bg-white p-3 sm:flex-nowrap">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-navy text-white">
-        <Flag className="h-4 w-4" />
-      </span>
+      <SubjectLogo subject={c.category as Subject} />
 
       {/* Sur mobile, le titre prend toute la ligne ; progression et bouton passent dessous */}
       <div className="min-w-0 flex-1 basis-[calc(100%-3.25rem)] sm:basis-auto">

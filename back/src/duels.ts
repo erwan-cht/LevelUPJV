@@ -488,3 +488,83 @@ duelsRouter.post('/duels/:id/submit', requireAuth('STUDENT'), async (req, res) =
     won,
   });
 });
+
+// ───────────── Notifications (cloche de l'en-tête) ─────────────
+
+/**
+ * Notifications de l'étudiant, calculées à partir des données existantes (aucun état « lu » à stocker) :
+ * - à traiter (comptées) : invitations de duel reçues, duel en cours, succès à réclamer ;
+ * - pour information : résultats des duels des dernières 24 heures.
+ * Les éléments à traiter disparaissent d'eux-mêmes une fois l'action faite.
+ */
+duelsRouter.get('/notifications', requireAuth('STUDENT'), async (req, res) => {
+  const me = req.auth!.sub;
+  const since = new Date(Date.now() - 24 * 60 * MIN);
+  const mine = [{ challengerId: me }, { opponentId: me }];
+
+  const [invites, active, finished, unclaimed] = await Promise.all([
+    prisma.duel.findMany({
+      where: { status: 'PENDING', opponentId: me, createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      include: { challenger: true, challenge: true },
+    }),
+    prisma.duel.findMany({ where: { status: 'ACTIVE', OR: mine }, include: { challenger: true, opponent: true } }),
+    prisma.duel.findMany({
+      where: { status: 'FINISHED', finishedAt: { gte: since }, OR: mine },
+      orderBy: { finishedAt: 'desc' },
+      take: 5,
+      include: { challenger: true, opponent: true },
+    }),
+    prisma.userBadge.count({ where: { userId: me, claimed: false } }),
+  ]);
+
+  const other = (d: { challengerId: number; challenger: { firstName: string; lastName: string }; opponent: { firstName: string; lastName: string } }) =>
+    d.challengerId === me ? d.opponent : d.challenger;
+
+  const items = [
+    ...invites.map((d) => ({
+      id: `invite-${d.id}`,
+      kind: 'duel-invite' as const,
+      duelId: d.id,
+      text: `${shortName(d.challenger.firstName, d.challenger.lastName)} te défie en ${subjectLabel[d.challenge.subject]} · ${difficultyLabel[d.challenge.difficulty]}`,
+      to: '/duels',
+      at: d.createdAt.toISOString(),
+      urgent: true,
+    })),
+    ...active.map((d) => {
+      const o = other(d);
+      return {
+        id: `active-${d.id}`,
+        kind: 'duel-active' as const,
+        text: `Ton duel contre ${shortName(o.firstName, o.lastName)} est en cours`,
+        to: `/duels/${d.id}`,
+        at: (d.startedAt ?? d.createdAt).toISOString(),
+        urgent: true,
+      };
+    }),
+    ...(unclaimed > 0
+      ? [{
+          id: 'badges',
+          kind: 'badges' as const,
+          text: unclaimed > 1 ? `${unclaimed} succès à réclamer` : '1 succès à réclamer',
+          to: '/succes',
+          at: new Date().toISOString(),
+          urgent: true,
+        }]
+      : []),
+    ...finished.map((d) => {
+      const o = shortName(other(d).firstName, other(d).lastName);
+      const won = d.winnerId === me;
+      return {
+        id: `result-${d.id}`,
+        kind: 'duel-result' as const,
+        text: won ? `Victoire contre ${o}${d.ranked && d.stakePoints ? ` (+${d.stakePoints} pts)` : ''}` : d.winnerId ? `Défaite contre ${o}` : `Égalité contre ${o}`,
+        to: '/duels',
+        at: (d.finishedAt ?? d.createdAt).toISOString(),
+        urgent: false,
+      };
+    }),
+  ];
+
+  res.json({ count: items.filter((i) => i.urgent).length, items });
+});

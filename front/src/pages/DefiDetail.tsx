@@ -3,6 +3,7 @@ import { ArrowLeft, CheckCircle2, Lock, Sparkles, Star, XCircle } from 'lucide-r
 import { Link, useParams } from 'react-router-dom';
 import { api, useApi } from '../api';
 import PageState from '../components/PageState';
+import SubjectLogo from '../components/SubjectLogo';
 import SqlVisualizer, { type TutorReply, type VizResult } from '../components/SqlVisualizer';
 import { subjectStyles } from '../subjects';
 import { useMe } from '../me';
@@ -168,7 +169,10 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">{challenge.title}</h1>
+          <h1 className="flex items-center gap-3 text-2xl font-semibold">
+            <SubjectLogo subject={challenge.subject} size="h-10 w-10" />
+            {challenge.title}
+          </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
             <span className={`rounded px-2 py-1 font-semibold text-white ${st.bar}`}>{challenge.subject}</span>
             <span className="rounded border border-slate-300 bg-white px-2 py-1">{challenge.difficulty}</span>
@@ -208,8 +212,8 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
-        <div className="space-y-5">
+      <div className={`grid gap-5 ${challenge.tables.length > 0 ? 'lg:grid-cols-[340px_1fr]' : ''}`}>
+        <div className={challenge.tables.length > 0 ? 'space-y-5' : 'hidden'}>
           {challenge.tables.length > 0 && (
             <section className="overflow-hidden rounded-lg border border-navy bg-white">
               <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">Tables disponibles</h2>
@@ -238,7 +242,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
                 onChange={(e) => setQuery(e.target.value)}
                 spellCheck={false}
                 rows={8}
-                className="min-h-48 w-full flex-1 resize-y rounded-md bg-[#1b2238] p-4 font-mono text-xs leading-6 text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand"
+                className={`${challenge.tables.length > 0 ? 'min-h-48' : 'min-h-80'} w-full flex-1 resize-y rounded-md bg-[#1b2238] p-4 font-mono text-xs leading-6 text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand`}
               />
               {!challenge.gradable && (
                 <p className="mt-2 text-xs italic text-muted">
