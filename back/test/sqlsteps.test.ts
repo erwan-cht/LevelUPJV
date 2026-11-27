@@ -98,3 +98,44 @@ test('HAVING manquant : on compare au SELECT de la solution', () => {
   assert.equal(r.expectedStep?.kind, 'select');
   assert.deepEqual(r.expectedStep?.rows, [['Paris', '99.9']]);
 });
+
+// ───────────── Syntaxe du cours : FROM R1, R2 WHERE … ─────────────
+
+test('jointure à la virgule : produit cartésien, puis le WHERE garde les bonnes lignes', () => {
+  const r = explain(SHOP, 'SELECT c.nom, o.montant FROM clients c, commandes o WHERE o.client_id = c.id');
+  assert.deepEqual(r.steps.map((s) => s.kind), ['from', 'join', 'where', 'select']);
+  const join = r.steps[1];
+  assert.equal(join.title, 'PRODUIT CARTÉSIEN');
+  assert.equal(join.comma, true);
+  assert.equal(join.total, 16); // 4 clients × 4 commandes
+  assert.equal((r.steps[2].keep ?? []).filter(Boolean).length, 4);
+});
+
+test('JOIN … ON garde son titre', () => {
+  const r = explain(SHOP, 'SELECT c.nom FROM clients c JOIN commandes o ON o.client_id = c.id');
+  assert.equal(r.steps[1].title, 'JOIN');
+  assert.equal(r.steps[1].comma, false);
+});
+
+test('même résultat écrit à la virgule ou avec JOIN : aucune divergence', () => {
+  const sol = 'SELECT c.nom, o.montant FROM clients c JOIN commandes o ON o.client_id = c.id ORDER BY c.nom, o.montant';
+  const r = explainAttempt(SHOP, sol, 'SELECT c.nom, o.montant FROM clients c, commandes o WHERE o.client_id = c.id ORDER BY c.nom, o.montant');
+  assert.equal(r.passed, true);
+  assert.equal(r.divergeAt, null);
+});
+
+test('condition de jointure oubliée (produit cartésien) : l’erreur est montrée à l’étape du produit', () => {
+  const sol = 'SELECT c.nom, o.montant FROM clients c JOIN commandes o ON o.client_id = c.id';
+  const r = explainAttempt(SHOP, sol, 'SELECT c.nom, o.montant FROM clients c, commandes o');
+  assert.equal(r.passed, false);
+  assert.equal(r.steps[r.divergeAt ?? -1].kind, 'join');
+  assert.match(r.divergeNote ?? '', /condition de jointure/);
+  assert.ok(r.expectedStep);
+});
+
+test('mauvaise condition à la virgule, solution à la virgule aussi : comparée étape par étape', () => {
+  const sol = 'SELECT c.nom FROM clients c, commandes o WHERE o.client_id = c.id AND o.montant > 50';
+  const r = explainAttempt(SHOP, sol, 'SELECT c.nom FROM clients c, commandes o WHERE o.client_id = c.id AND o.montant > 10');
+  assert.equal(r.passed, false);
+  assert.equal(r.steps[r.divergeAt ?? -1].kind, 'where');
+});

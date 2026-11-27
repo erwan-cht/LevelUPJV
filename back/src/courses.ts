@@ -74,3 +74,29 @@ export function sanitizeCitations(text: string, c: Course): string {
     return from >= 1 && to >= from && to <= c.pages.length ? m : '';
   });
 }
+
+export const defaultCourse = (): Course | null => courses().values().next().value ?? null;
+
+/** Étape d'une requête, ou « cartesian » pour la jointure écrite à la virgule (FROM R1, R2 WHERE …). */
+export type StepKey = 'from' | 'join' | 'cartesian' | 'where' | 'group' | 'having' | 'select' | 'order';
+
+/** Titres de diapositives (première ligne) qui traitent chaque étape. Le HAVING n'a pas de titre propre : on cherche dans le texte. */
+const STEP_TITLE: Record<Exclude<StepKey, 'having'>, RegExp> = {
+  from: /commande SELECT/i,
+  join: /WHERE\s*[–-]\s*Jointure/i,
+  cartesian: /Produit cart[ée]sien/i,
+  where: /commande WHERE\s*[–-]\s*S[ée]lection/i,
+  group: /GROUP BY/i,
+  select: /SELECT\s*[–-]\s*Projection/i,
+  order: /ORDER BY/i,
+};
+
+/** Pages du cours qui expliquent une étape (au plus 3, de la première page trouvée et du même titre) ; vide si le cours n'en parle pas. */
+export function pagesForStep(c: Course, key: StepKey): number[] {
+  const titleOf = (i: number) => c.pages[i]?.split('\n')[0]?.trim() ?? '';
+  const first = c.pages.findIndex((t, i) => (key === 'having' ? /\bhaving\b/i.test(t) : STEP_TITLE[key].test(titleOf(i))));
+  if (first === -1) return [];
+  const out = [first + 1];
+  for (let i = first + 1; i < c.pages.length && out.length < 3 && titleOf(i) === titleOf(first); i++) out.push(i + 1);
+  return out;
+}

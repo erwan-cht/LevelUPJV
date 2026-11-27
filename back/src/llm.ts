@@ -27,14 +27,18 @@ export function providerInUse(): Provider | null {
 }
 
 /** Gemini : API REST, clé dans l'en-tête (jamais dans l'URL, qui finit dans les journaux). */
-async function askGemini(system: string, turns: Turn[], maxTokens: number): Promise<string | null> {
+async function askGemini(system: string, turns: Turn[], maxTokens: number, schema?: object): Promise<string | null> {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel())}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY ?? '' },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: turns.map((t) => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [{ text: t.content }] })),
-      generationConfig: { maxOutputTokens: maxTokens, temperature: 0.4 },
+      generationConfig: {
+        maxOutputTokens: maxTokens,
+        temperature: schema ? 0.7 : 0.4,
+        ...(schema ? { responseMimeType: 'application/json', responseSchema: schema } : {}),
+      },
     }),
     signal: AbortSignal.timeout(30_000),
   });
@@ -51,7 +55,7 @@ async function askGemini(system: string, turns: Turn[], maxTokens: number): Prom
 }
 
 /** Claude : un refus de sécurité donne `null`. */
-async function askClaude(system: string, turns: Turn[], maxTokens: number): Promise<string | null> {
+async function askClaude(system: string, turns: Turn[], maxTokens: number, schema?: object): Promise<string | null> {
   const response = await new Anthropic().beta.messages.create({
     model: CLAUDE_MODEL,
     max_tokens: maxTokens,
@@ -59,7 +63,9 @@ async function askClaude(system: string, turns: Turn[], maxTokens: number): Prom
     fallbacks: 'default',
     thinking: { type: 'adaptive' },
     output_config: { effort: 'low' }, // réponses courtes : inutile de réfléchir longtemps
-    system,
+    system: schema ? `${system}
+
+Réponds uniquement avec un objet JSON valide, sans texte autour ni bloc de code.` : system,
     messages: turns,
   });
   if (response.stop_reason === 'refusal') return null;
@@ -72,17 +78,28 @@ async function askClaude(system: string, turns: Turn[], maxTokens: number): Prom
 }
 
 /**
- * Génère une réponse. `null` : pas de fournisseur configuré, ou réponse vide / refusée.
+ * Génère une réponse (si `schema` est donné : du JSON conforme, à analyser avec `parseJson`). `null` : pas de fournisseur configuré, ou réponse vide / refusée.
  * Lève une erreur si l'appel échoue (quota, réseau, clé ou modèle invalide…) : à l'appelant de prévoir un repli.
  */
-export async function generate(system: string, turns: Turn[], maxTokens = 2000): Promise<string | null> {
+export async function generate(system: string, turns: Turn[], maxTokens = 2000, schema?: object): Promise<string | null> {
   const provider = providerInUse();
   if (!provider) return null;
   try {
-    return await (provider === 'gemini' ? askGemini(system, turns, maxTokens) : askClaude(system, turns, maxTokens));
+    return await (provider === 'gemini' ? askGemini(system, turns, maxTokens, schema) : askClaude(system, turns, maxTokens, schema));
   } catch (e) {
     const detail = e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : e instanceof Error ? e.message : String(e);
     console.error(`IA (${provider}) indisponible :`, detail);
     throw new Error(detail);
+  }
+}
+
+/** Analyse une réponse JSON du modèle, même entourée d'un bloc de code ; `null` si elle n'est pas du JSON valide. */
+export function parseJson(text: string | null): unknown {
+  if (!text) return null;
+  const body = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
   }
 }

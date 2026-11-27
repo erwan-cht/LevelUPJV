@@ -47,7 +47,17 @@ export interface VizResult {
   expectedStep?: VizStep;
 }
 
+/** Cours à relire pour l'étape fautive. */
+export interface CourseRef {
+  id: string;
+  title: string;
+  author: string;
+  total: number;
+  pages: number[];
+}
+
 export interface TutorReply {
+  course?: CourseRef | null;
   text: string;
   /** « ai » : généré par le modèle ; « rules » : conseil construit sans IA. */
   source: 'ai' | 'rules';
@@ -197,11 +207,14 @@ export default function SqlVisualizer({
   result,
   onClose,
   onAskTutor,
+  onOpenCourse,
 }: {
   result: VizResult;
   onClose: () => void;
   /** Demande un conseil au tuteur ; absent : pas de bouton. */
   onAskTutor?: () => Promise<TutorReply | null>;
+  /** Ouvre une page du cours (absent : les liens vers le cours ne sont pas proposés). */
+  onOpenCourse?: (course: CourseRef, page: number) => void;
 }) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -331,6 +344,20 @@ export default function SqlVisualizer({
                 {tutor.source === 'ai' ? 'Tuteur IA' : 'Conseil automatique'} · étape {steps[tutor.stepIndex]?.title}
               </p>
               <p className="whitespace-pre-line">{tutor.text}</p>
+              {tutor.course && onOpenCourse && (
+                <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="font-semibold text-muted">À relire dans le cours de {tutor.course.author} :</span>
+                  {tutor.course.pages.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => tutor.course && onOpenCourse(tutor.course, n)}
+                      className="rounded-full bg-brand-light px-2 py-0.5 font-semibold text-brand hover:bg-brand hover:text-white"
+                    >
+                      p. {n}
+                    </button>
+                  ))}
+                </p>
+              )}
               {index !== tutor.stepIndex && (
                 <button
                   onClick={() => {

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Lock, Sparkles, Star, XCircle } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useApi } from '../api';
 import PageState from '../components/PageState';
-import SqlVisualizer, { type TutorReply, type VizResult } from '../components/SqlVisualizer';
+import CourseDrawer from '../components/CourseDrawer';
+import SqlVisualizer, { type CourseRef, type TutorReply, type VizResult } from '../components/SqlVisualizer';
 import { subjectStyles } from '../subjects';
 import { useMe } from '../me';
 import type { Subject } from '../types';
@@ -84,6 +85,8 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
   const [seconds, setSeconds] = useState(0);
   const [problem, setProblem] = useState('');
   const [viz, setViz] = useState<(VizResult & { id: number; query: string }) | null>(null);
+  const [courseView, setCourseView] = useState<{ course: CourseRef; page: number } | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const t = window.setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -265,9 +268,11 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
               key={viz.id}
               result={viz}
               onClose={() => setViz(null)}
-              onAskTutor={async () =>
-                (await api<{ tutor: TutorReply | null }>(`/challenges/${challenge.id}/tutor`, { body: { query: viz.query } })).tutor
-              }
+              onAskTutor={async () => {
+                const res = await api<{ tutor: TutorReply | null; course: CourseRef | null }>(`/challenges/${challenge.id}/tutor`, { body: { query: viz.query } });
+                return res.tutor && { ...res.tutor, course: res.course };
+              }}
+              onOpenCourse={(course, page) => setCourseView({ course, page })}
             />
           )}
         </div>
@@ -361,6 +366,16 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
           )}
         </div>
       </section>
+      )}
+
+      {courseView && (
+        <CourseDrawer
+          course={{ id: courseView.course.id, title: courseView.course.title, author: courseView.course.author, pages: courseView.course.total }}
+          page={courseView.page}
+          onPage={(page) => setCourseView((v) => v && { ...v, page })}
+          onClose={() => setCourseView(null)}
+          onExplain={(n) => navigate('/assistant', { state: { ask: `Explique-moi la diapositive p. ${n} du cours, simplement et avec un exemple.` } })}
+        />
       )}
     </div>
   );

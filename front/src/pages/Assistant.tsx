@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useLocation } from 'react-router-dom';
 import { BookOpen, Bot, RotateCcw, Send } from 'lucide-react';
 import { api, useApi } from '../api';
 import CoursePanel, { type CourseInfo } from '../components/CoursePanel';
@@ -38,6 +39,9 @@ export default function Assistant() {
   const courseList = useApi<{ items: CourseInfo[] }>('/courses');
   const course = courseList.data?.items[0] ?? null;
   const [page, setPage] = useState<number | null>(null); // diapositive affichée à côté du chat
+  // Une autre page peut envoyer une question toute faite (ex. « Expliquer cette diapo » depuis un défi).
+  const ask = (useLocation().state as { ask?: string } | null)?.ask;
+  const asked = useRef(false);
 
   useEffect(() => {
     try {
@@ -67,6 +71,14 @@ export default function Assistant() {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!ask || asked.current || courseList.loading) return;
+    asked.current = true;
+    window.history.replaceState({}, ''); // un rechargement ne renvoie pas la question
+    void send(ask);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ask, courseList.loading]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

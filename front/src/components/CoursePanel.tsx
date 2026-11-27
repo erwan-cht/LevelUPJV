@@ -19,6 +19,7 @@ export default function CoursePanel({
   onPage,
   onClose,
   onExplain,
+  className = 'h-[65vh] min-h-[420px] lg:sticky lg:top-20',
 }: {
   course: CourseInfo;
   page: number;
@@ -26,6 +27,8 @@ export default function CoursePanel({
   onClose: () => void;
   /** Demande à l'assistant d'expliquer la diapositive affichée. */
   onExplain: (page: number) => void;
+  /** Taille et position du panneau (par défaut : à côté du chat). */
+  className?: string;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -54,7 +57,7 @@ export default function CoursePanel({
   const current = [...(outline.data?.items ?? [])].reverse().find((o) => o.page <= page);
 
   return (
-    <aside className="flex h-[65vh] min-h-[420px] flex-col overflow-hidden rounded-lg border border-brand bg-white lg:sticky lg:top-20" aria-label="Diapositive du cours">
+    <aside className={`flex flex-col overflow-hidden rounded-lg border border-brand bg-white ${className}`} aria-label="Diapositive du cours">
       <div className="flex items-center justify-between gap-2 bg-brand px-3 py-2 text-white">
         <p className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide">Cours · {course.author}</p>
         <button onClick={onClose} aria-label="Fermer le cours" className="rounded p-0.5 hover:bg-white/20">

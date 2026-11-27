@@ -16,8 +16,10 @@ import { adminRouter } from './admin.js';
 import { explainAttempt } from './sqlsteps.js';
 import { tutor } from './tutor.js';
 import { chatRouter } from './chat.js';
+import { defaultCourse, pagesForStep } from './courses.js';
 import { duelsRouter } from './duels.js';
 import { profileRouter } from './profile.js';
+import { quizRouter } from './quiz.js';
 import { describeTables, judge, runQuery } from './sql.js';
 import { teacherRouter } from './teacher.js';
 import {
@@ -393,7 +395,15 @@ api.post('/challenges/:id/tutor', requireAuth('STUDENT'), async (req, res) => {
       data: { userId, challengeId: c.id, level: 0, prompt: q.query.slice(0, 2000), response: reply.text, cost: 0 },
     });
   }
-  res.json({ ...result, tutor: reply });
+  // Pages du cours à relire pour l'étape fautive (le cours est facultatif : sans lui, pas de lien).
+  const course = defaultCourse();
+  const step = reply ? result.steps[reply.stepIndex] : undefined;
+  const pages = course && step ? pagesForStep(course, step.kind === 'join' && step.comma ? 'cartesian' : step.kind) : [];
+  res.json({
+    ...result,
+    tutor: reply,
+    course: course && pages.length ? { id: course.id, title: course.title, author: course.author, total: course.pages.length, pages } : null,
+  });
 });
 
 /** Valide la réponse : correction automatique, tentative enregistrée, points au premier succès. */
@@ -514,5 +524,6 @@ api.post('/challenges/:id/favorite', requireAuth('STUDENT'), async (req, res) =>
 api.use(profileRouter);
 api.use(duelsRouter);
 api.use(chatRouter);
+api.use(quizRouter);
 api.use('/teacher', teacherRouter);
 api.use('/admin', adminRouter);
