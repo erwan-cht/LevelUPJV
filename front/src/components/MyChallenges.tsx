@@ -1,32 +1,78 @@
 import { useState } from 'react';
+import { subjects } from '../subjects';
 import SubjectLogo from './SubjectLogo';
 import { Link } from 'react-router-dom';
 import type { Challenge, ChallengeStatus, Subject } from '../types';
 import { Card, CardTitle, ProgressBar, Tabs } from './ui';
 
 const tabs: { id: ChallengeStatus; label: string }[] = [
-  { id: 'en-cours', label: 'En cours' },
   { id: 'recommande', label: 'Recommandés' },
+  { id: 'en-cours', label: 'En cours' },
   { id: 'termine', label: 'Terminés' },
 ];
 
+const LIMIT = 4;
+const difficultyRank: Record<string, number> = { Facile: 0, Moyen: 1, Difficile: 2 };
+
+/**
+ * Un défi conseillé par matière (4 au plus) : d'abord ceux donnés par un enseignant,
+ * puis le plus facile, puis le plus ancien.
+ */
+function recommendations(challenges: Challenge[]): Challenge[] {
+  return subjects.flatMap((s) => {
+    const pick = challenges
+      .filter((c) => c.status === 'recommande' && c.category === s)
+      .sort(
+        (a, b) =>
+          Number(Boolean(b.assigned)) - Number(Boolean(a.assigned)) ||
+          (difficultyRank[a.difficulty] ?? 9) - (difficultyRank[b.difficulty] ?? 9) ||
+          a.id - b.id,
+      )[0];
+    return pick ? [pick] : [];
+  });
+}
+
 export default function MyChallenges({ challenges }: { challenges: Challenge[] }) {
-  const [tab, setTab] = useState<ChallengeStatus>('en-cours');
-  const visible = challenges.filter((c) => c.status === tab);
+  const hasInProgress = challenges.some((c) => c.status === 'en-cours');
+  // « En cours » par défaut seulement s'il y a un défi commencé ; sinon les recommandations.
+  const [tab, setTab] = useState<ChallengeStatus>(hasInProgress ? 'en-cours' : 'recommande');
+  const [expanded, setExpanded] = useState(false);
+
+  const list = tab === 'recommande' ? recommendations(challenges) : challenges.filter((c) => c.status === tab);
+  const visible = expanded ? list : list.slice(0, LIMIT);
+  const hidden = list.length - LIMIT;
+  const empty = { 'en-cours': 'Aucun défi en cours : commence un défi recommandé !', recommande: 'Tu as fait le tour des défis disponibles, bravo !', termine: 'Aucun défi terminé pour le moment.' }[tab];
 
   return (
     <Card>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <CardTitle>Mes défis</CardTitle>
-        <Tabs tabs={tabs} value={tab} onChange={setTab} />
+        <Tabs
+          tabs={tabs}
+          value={tab}
+          onChange={(t) => {
+            setTab(t);
+            setExpanded(false);
+          }}
+        />
       </div>
 
       <ul className="space-y-3">
         {visible.map((c) => (
           <ChallengeRow key={c.id} challenge={c} />
         ))}
-        {visible.length === 0 && <li className="text-sm text-muted">Aucun défi ici pour le moment.</li>}
+        {visible.length === 0 && <li className="text-sm text-muted">{empty}</li>}
       </ul>
+
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="mt-3 w-full rounded-md border border-slate-300 bg-white py-2 text-xs font-semibold text-navy hover:bg-slate-50"
+        >
+          {expanded ? 'Voir moins' : `Voir plus (${hidden})`}
+        </button>
+      )}
 
       <Link to="/defis" className="mt-4 inline-block text-xs font-semibold text-brand hover:underline">
         Voir tous les défis →

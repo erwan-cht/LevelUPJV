@@ -28,6 +28,8 @@ export interface Challenge {
   testsTotal: number;
   points: number;
   status: ChallengeStatus;
+  /** Défi donné par un enseignant à la promo ou au groupe : proposé en priorité. */
+  assigned?: boolean;
 }
 
 export interface RankingEntry {

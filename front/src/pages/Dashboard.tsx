@@ -44,6 +44,7 @@ const toDashboardChallenge = (c: ApiChallenge): Challenge => ({
   testsTotal: c.tests,
   points: c.points,
   status: c.status === 'termine' ? 'termine' : c.status === 'en-cours' ? 'en-cours' : 'recommande',
+  assigned: Boolean(c.recommended),
 });
 
 /** Le « toi » du classement est repéré par le serveur (isMe). */
