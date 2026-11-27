@@ -141,6 +141,7 @@ model User {
   duelsWon          Duel[]                 @relation("DuelWinner")
   hostedArenas      ArenaSession[]         @relation("ArenaHost")
   arenaAnswers      ArenaAnswer[]
+  arenaJoined       ArenaParticipant[]     @relation("ArenaParticipants")
   referentOf        Promotion[]            @relation("PromotionReferent")
   assignments       Assignment[]
   auditEntries      AuditLog[]
@@ -409,8 +410,28 @@ model ArenaSession {
   finishedAt DateTime?
   createdAt  DateTime    @default(now())
 
-  challenges ArenaChallenge[]
-  answers    ArenaAnswer[]
+  // Déroulement : `currentIndex` désigne le défi en cours (-1 : salle d'attente), `revealed` : le temps est écoulé
+  // et l'analyse est affichée. Stocké en base pour qu'un redémarrage du serveur ne casse pas une séance.
+  currentIndex      Int       @default(-1)
+  revealed          Boolean   @default(false)
+  questionStartedAt DateTime?
+  timeLimitSec      Int       @default(240)
+
+  challenges   ArenaChallenge[]
+  answers      ArenaAnswer[]
+  participants ArenaParticipant[]
+}
+
+// Étudiants entrés dans la salle (avant même d'avoir répondu).
+model ArenaParticipant {
+  arenaId  Int
+  userId   Int
+  arena    ArenaSession @relation(fields: [arenaId], references: [id], onDelete: Cascade)
+  user     User         @relation("ArenaParticipants", fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime     @default(now())
+
+  @@id([arenaId, userId])
+  @@index([userId])
 }
 
 model ArenaChallenge {

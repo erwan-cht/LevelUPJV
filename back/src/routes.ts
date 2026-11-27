@@ -13,6 +13,7 @@ import {
   subjectLabel,
 } from './format.js';
 import { adminRouter } from './admin.js';
+import { arenaRouter } from './arena.js';
 import { explainAttempt } from './sqlsteps.js';
 import { tutor } from './tutor.js';
 import { chatRouter } from './chat.js';
@@ -525,5 +526,6 @@ api.use(profileRouter);
 api.use(duelsRouter);
 api.use(chatRouter);
 api.use(quizRouter);
+api.use(arenaRouter);
 api.use('/teacher', teacherRouter);
 api.use('/admin', adminRouter);
