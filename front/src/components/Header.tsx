@@ -155,10 +155,12 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
           ))}
         </nav>
 
-        <div className="relative ml-auto flex items-center gap-3 lg:ml-0">
+        <div className="relative ml-auto flex items-center gap-2 sm:gap-3 lg:ml-0">
           {extra}
-          <SoundToggle />
-          <span className="whitespace-nowrap rounded-full bg-brand-light px-3 py-1 text-sm font-semibold">{chip}</span>
+          <span className="hidden sm:block">
+            <SoundToggle />
+          </span>
+          <span className="max-w-[6.5rem] truncate whitespace-nowrap rounded-full bg-brand-light px-2.5 py-1 text-sm font-semibold sm:max-w-none sm:px-3">{chip}</span>
           <button
             className="flex items-center gap-1"
             aria-label="Menu du compte"
@@ -210,6 +212,10 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
               {l.label}
             </NavLink>
           ))}
+          {/* Sur téléphone, le bouton des sons est ici : il ne tient plus dans l'en-tête */}
+          <div className="mt-1 border-t border-slate-100 pt-1 sm:hidden">
+            <SoundToggle withLabel />
+          </div>
         </nav>
       )}
     </header>

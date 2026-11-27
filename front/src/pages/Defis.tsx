@@ -230,7 +230,7 @@ function ChallengeCard({ c, fav, onFav }: { c: ApiChallenge; fav: boolean; onFav
   const action = c.status === 'termine' ? 'Revoir' : c.status === 'en-cours' ? 'Reprendre' : 'Commencer';
 
   return (
-    <article className="flex flex-col rounded-lg bg-panel p-4">
+    <article className="flex min-w-0 flex-col rounded-lg bg-panel p-4 [overflow-wrap:anywhere]">
       <div className="flex items-center gap-2">
         <SubjectLogo subject={c.subject} size="h-8 w-8" />
         <DifficultyDots level={c.difficulty} />

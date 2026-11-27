@@ -8,7 +8,7 @@ export default function Logo({ to = '/', badge }: { to?: string; badge?: string 
         Level<span className="text-brand">UP</span>JV
       </span>
       {badge && (
-        <span className="ml-1 rounded bg-navy px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white">
+        <span className="ml-1 hidden rounded bg-navy sm:inline px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white">
           {badge}
         </span>
       )}
