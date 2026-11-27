@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { Bot, RotateCcw, Send } from 'lucide-react';
-import { api } from '../api';
+import { BookOpen, Bot, RotateCcw, Send } from 'lucide-react';
+import { api, useApi } from '../api';
+import CoursePanel, { type CourseInfo } from '../components/CoursePanel';
 import Markdown from '../components/Markdown';
 import { Breadcrumb, PageTitle } from '../components/ui';
 
@@ -11,10 +12,10 @@ interface Message {
 
 const STORAGE_KEY = 'levelupjv-assistant';
 const SUGGESTIONS = [
-  'Quelle est la différence entre INNER JOIN et LEFT JOIN ?',
-  'Explique-moi la complexité d’un algorithme (O(n), O(n²)) avec un exemple.',
-  'Comment fonctionne une requête HTTP entre un navigateur et un serveur ?',
-  'À quoi sert un masque de sous-réseau ?',
+  'Quelle est la différence entre une jointure et un produit cartésien ?',
+  'Explique-moi GROUP BY et les fonctions d’agrégat avec un exemple.',
+  'C’est quoi une clé primaire et une clé étrangère ?',
+  'Comment fonctionne la différence entre UNION, INTERSECT et EXCEPT ?',
 ];
 
 /** Conversation gardée dans l'onglet (sessionStorage) : elle survit à un changement de page, pas à la fermeture. */
@@ -34,6 +35,9 @@ export default function Assistant() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const end = useRef<HTMLDivElement>(null);
+  const courseList = useApi<{ items: CourseInfo[] }>('/courses');
+  const course = courseList.data?.items[0] ?? null;
+  const [page, setPage] = useState<number | null>(null); // diapositive affichée à côté du chat
 
   useEffect(() => {
     try {
@@ -53,7 +57,7 @@ export default function Assistant() {
     setError('');
     setBusy(true);
     try {
-      const res = await api<{ text: string }>('/chat', { body: { messages: next.slice(-16) } });
+      const res = await api<{ text: string }>('/chat', { body: { messages: next.slice(-16), course: course?.id } });
       setMessages([...next, { role: 'assistant', content: res.text }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'L’assistant est indisponible.');
@@ -93,6 +97,21 @@ export default function Assistant() {
         )}
       </div>
 
+      {course && (
+        <p className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-light px-3 py-1 font-semibold text-brand">
+            <BookOpen className="h-3.5 w-3.5" /> Ancré sur le cours
+          </span>
+          <span className="text-muted">
+            {course.title} · {course.author} · {course.pages} pages
+          </span>
+          <button onClick={() => setPage((p) => p ?? 1)} className="font-semibold text-brand hover:underline">
+            Ouvrir le cours
+          </button>
+        </p>
+      )}
+
+      <div className={page !== null && course ? 'grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,42%)]' : ''}>
       <section className="flex h-[65vh] min-h-[420px] flex-col overflow-hidden rounded-lg border border-navy bg-white">
         <div className="flex-1 space-y-4 overflow-y-auto p-4" aria-live="polite">
           {messages.length === 0 && (
@@ -122,7 +141,7 @@ export default function Assistant() {
                   <Bot className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 max-w-[90%] rounded-2xl rounded-tl-sm bg-panel px-4 py-3">
-                  <Markdown text={m.content} />
+                  <Markdown text={m.content} onCite={course ? (n) => setPage(n) : undefined} />
                 </div>
               </div>
             ),
@@ -164,6 +183,17 @@ export default function Assistant() {
           </button>
         </form>
       </section>
+
+      {page !== null && course && (
+        <CoursePanel
+          course={course}
+          page={page}
+          onPage={setPage}
+          onClose={() => setPage(null)}
+          onExplain={(n) => void send(`Explique-moi la diapositive p. ${n} du cours, simplement et avec un exemple.`)}
+        />
+      )}
+      </div>
 
       <p className="text-xs italic text-muted">
         Réponses générées par une IA : elles peuvent contenir des erreurs, vérifie avec ton cours. L’assistant n’a pas accès aux supports de tes enseignants.

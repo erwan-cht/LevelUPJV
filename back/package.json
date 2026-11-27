@@ -20,7 +20,8 @@
     "@types/pg": "^8.23.1",
     "prisma": "7.10.1",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "unpdf": "^2.2.3"
   },
   "scripts": {
     "db:up": "docker compose -f ../docker-compose.yml up -d --wait",
