@@ -58,6 +58,8 @@ export interface ExplainResult extends Explanation {
   /** Index (dans `steps`) de la première étape où la requête s'écarte de la solution. */
   divergeAt?: number | null;
   divergeNote?: string;
+  /** Étape fautive (ou manquante) : peut différer de l'étape affichée quand une clause est oubliée. */
+  divergeKind?: StepKind;
   /** Même étape, vue côté solution (pour comparer côte à côte). */
   expectedStep?: Step;
 }
@@ -481,6 +483,7 @@ export function explainAttempt(setupSql: string, solutionSql: string | null, ans
   // Produit cartésien sans condition de jointure : l'erreur classique, et la plus parlante à montrer.
   if (mj?.comma && !mine.steps.some((s) => s.kind === 'where') && rj) {
     out.divergeAt = mine.steps.indexOf(mj);
+    out.divergeKind = 'join';
     out.divergeNote = 'Il manque la condition de jointure : sans elle, chaque ligne est associée à toutes les autres (produit cartésien).';
     out.expectedStep = rj;
     return out;
@@ -495,16 +498,19 @@ export function explainAttempt(setupSql: string, solutionSql: string | null, ans
 
     if (a && b) {
       out.divergeAt = mine.steps.indexOf(a);
+      out.divergeKind = kind;
       out.divergeNote = DIVERGENCE[kind];
       out.expectedStep = b;
     } else if (a) {
       out.divergeAt = mine.steps.indexOf(a);
+      out.divergeKind = kind;
       out.divergeNote = EXTRA[kind];
     } else {
       // Étape absente chez l'étudiant : on pointe la première étape suivante qu'il a écrite.
       const later = mine.steps.find((s) => ORDER.indexOf(s.kind) > ORDER.indexOf(kind));
       const at = later ?? mine.steps[mine.steps.length - 1];
       out.divergeAt = mine.steps.indexOf(at);
+      out.divergeKind = kind;
       out.divergeNote = MISSING[kind];
       // On compare à la même étape côté solution (ex. le SELECT filtré par le HAVING manquant).
       out.expectedStep = ref.steps.find((s) => s.kind === at.kind) ?? b;
@@ -513,6 +519,7 @@ export function explainAttempt(setupSql: string, solutionSql: string | null, ans
   }
   // Toutes les étapes coïncident mais le résultat diffère (ex. colonnes en trop).
   out.divergeAt = mine.steps.length - 1;
+  out.divergeKind = 'select';
   out.divergeNote = 'Les étapes sont identiques, mais le résultat final ne correspond pas (colonnes ou ordre).';
   return out;
 }

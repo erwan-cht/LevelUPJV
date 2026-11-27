@@ -16,6 +16,7 @@ export const studentNav: NavItem[] = [
   { label: 'Défis', to: '/defis' },
   { label: 'Classement', to: '/classement' },
   { label: 'Duels', to: '/duels' },
+  { label: 'Arène', to: '/arene' },
   { label: 'Assistant', to: '/assistant' },
   { label: 'Quiz', to: '/quiz' },
   { label: 'Mon profil', to: '/profil' },

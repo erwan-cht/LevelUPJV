@@ -5,8 +5,9 @@
 // est en base : un redémarrage du serveur (déploiement) ne casse pas une séance, les écrans se reconnectent seuls.
 import type { Request, Response } from 'express';
 import { Router } from 'express';
-import { analyse, leaderboard, newJoinCode, normalizeCode, resultOf, STEP_LABEL, type Attempt } from './arenaLogic.js';
+import { analyse, leaderboard, newJoinCode, normalizeCode, resultOf, STEP_LABEL, type Analysis, type Attempt } from './arenaLogic.js';
 import { requireAuth } from './auth.js';
+import { defaultCourse, pagesForStep, type StepKey } from './courses.js';
 import { prisma } from './db.js';
 import { describeTables, judge } from './sql.js';
 import { explainAttempt } from './sqlsteps.js';
@@ -45,6 +46,17 @@ const tablesOf = (id: number, setupSql: string | null) => {
 };
 
 type Viewer = { userId: number; host: boolean };
+
+const KEY_OF = Object.fromEntries(Object.entries(STEP_LABEL).map(([key, label]) => [label, key])) as Record<string, StepKey>;
+
+/** Pages du cours à revoir pour l'étape où la salle a le plus buté (le cours est facultatif). */
+function reviewFor(a?: Analysis) {
+  const course = defaultCourse();
+  const key = a?.byStep[0] && KEY_OF[a.byStep[0].step];
+  if (!course || !key) return undefined;
+  const pages = pagesForStep(course, key);
+  return pages.length ? { course: { id: course.id, title: course.title, author: course.author, total: course.pages.length }, pages } : undefined;
+}
 
 /** Ce que voit un écran : l'enseignant (projecteur) en sait plus qu'un étudiant (solution, analyse, liste de la salle). */
 function view(core: Core, viewer: Viewer) {
@@ -101,6 +113,12 @@ function view(core: Core, viewer: Viewer) {
       analyses: phase === 'finished' ? analyses : undefined,
       solution: phase === 'reveal' ? current?.solutionSql : undefined,
       full: phase === 'finished' ? board.map(row) : undefined,
+      review:
+        phase === 'reveal'
+          ? reviewFor(analyses[s.currentIndex]?.analysis)
+          : phase === 'finished'
+            ? reviewFor([...analyses].filter((x) => x.analysis.answered > 0).sort((a, b) => a.analysis.successPct - b.analysis.successPct)[0]?.analysis)
+            : undefined,
     };
   }
   return {
@@ -339,13 +357,6 @@ arenaRouter.post('/arena/:code/answer', requireAuth('STUDENT'), async (req, res)
     return;
   }
 
-  const key = `${s.id}:${userId}`;
-  if (Date.now() - (lastSent.get(key) ?? 0) < MIN_GAP_MS) {
-    res.status(429).json({ error: 'Doucement : une réponse à la fois.' });
-    return;
-  }
-  lastSent.set(key, Date.now());
-
   const before = await prisma.arenaAnswer.findMany({ where: { arenaId: s.id, userId, challengeId: c.id } });
   if (before.some((a) => a.correct)) {
     res.json({ correct: true, already: true, message: 'Tu as déjà réussi ce défi.' });
@@ -355,6 +366,13 @@ arenaRouter.post('/arena/:code/answer', requireAuth('STUDENT'), async (req, res)
     res.status(429).json({ error: 'Trop de tentatives sur ce défi.' });
     return;
   }
+  // Une vraie tentative à la fois (seules les tentatives corrigées comptent pour le délai).
+  const key = `${s.id}:${userId}`;
+  if (Date.now() - (lastSent.get(key) ?? 0) < MIN_GAP_MS) {
+    res.status(429).json({ error: 'Doucement : une réponse à la fois.' });
+    return;
+  }
+  lastSent.set(key, Date.now());
 
   // Correction + étape où la requête s'écarte de la solution (alimente l'analyse de la salle).
   const verdict = judge(c.setupSql, c.solutionSql, query);
@@ -369,8 +387,8 @@ arenaRouter.post('/arena/:code/answer', requireAuth('STUDENT'), async (req, res)
     message = verdict.message;
     if (!correct) {
       const e = explainAttempt(c.setupSql, c.solutionSql, query);
-      const step = e.divergeAt !== null && e.divergeAt !== undefined ? e.steps[e.divergeAt] : undefined;
-      failedStep = step ? (STEP_LABEL[step.kind] ?? 'AUTRE') : 'RÉSULTAT';
+      // L'étape fautive, ou celle qu'il manque (un WHERE oublié compte comme « WHERE », pas comme « SELECT »).
+      failedStep = e.divergeKind ? (STEP_LABEL[e.divergeKind] ?? 'AUTRE') : 'RÉSULTAT';
     }
   }
 
