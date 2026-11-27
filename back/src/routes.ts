@@ -21,6 +21,7 @@ import { defaultCourse, pagesForStep } from './courses.js';
 import { duelsRouter } from './duels.js';
 import { profileRouter } from './profile.js';
 import { quizRouter } from './quiz.js';
+import { skillsRouter } from './skills.js';
 import { describeTables, judge, runQuery } from './sql.js';
 import { teacherRouter } from './teacher.js';
 import {
@@ -527,5 +528,6 @@ api.use(duelsRouter);
 api.use(chatRouter);
 api.use(quizRouter);
 api.use(arenaRouter);
+api.use(skillsRouter);
 api.use('/teacher', teacherRouter);
 api.use('/admin', adminRouter);
