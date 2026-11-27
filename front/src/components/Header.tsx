@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { ChevronDown, LogOut, Menu, Settings, User, X } from 'lucide-react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Bot, ChevronDown, Code2, LogOut, Menu, Radio, Settings, Swords, User, X, Zap, type LucideIcon } from 'lucide-react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import Logo from './layout/Logo';
 import { formatNumber } from './ui';
@@ -9,19 +9,99 @@ export interface NavItem {
   label: string;
   to: string;
   end?: boolean;
+  /** Pour une entrée de sous-menu : icône et courte description. */
+  icon?: LucideIcon;
+  hint?: string;
+  /** Entrée qui ouvre un sous-menu au lieu d'une page. */
+  children?: NavItem[];
 }
 
 export const studentNav: NavItem[] = [
-  { label: 'Tableau de bord', to: '/', end: true },
-  { label: 'Défis', to: '/defis' },
+  { label: 'Accueil', to: '/', end: true },
+  {
+    label: 'Apprendre',
+    to: '/defis',
+    children: [
+      { label: 'Défis', to: '/defis', icon: Code2, hint: 'Entraîne-toi sur les exercices' },
+      { label: 'Assistant', to: '/assistant', icon: Bot, hint: 'Pose tes questions sur le cours' },
+      { label: 'Quiz', to: '/quiz', icon: Zap, hint: 'Révise avec des questions rapides' },
+    ],
+  },
   { label: 'Classement', to: '/classement' },
-  { label: 'Duels', to: '/duels' },
-  { label: 'Arène', to: '/arene' },
-  { label: 'Assistant', to: '/assistant' },
-  { label: 'Quiz', to: '/quiz' },
+  {
+    label: 'Compétition',
+    to: '/duels',
+    children: [
+      { label: 'Duels', to: '/duels', icon: Swords, hint: 'Affronte un camarade' },
+      { label: 'Arène', to: '/arene', icon: Radio, hint: 'Rejoins une séance en direct' },
+    ],
+  },
   { label: 'Examen', to: '/examen' },
-  { label: 'Mon profil', to: '/profil' },
+  // « Mon profil » est dans le menu de l'avatar, à droite.
 ];
+
+const isUnder = (pathname: string, to: string) => pathname === to || pathname.startsWith(`${to}/`);
+
+/** Entrée de la barre qui ouvre un petit menu (Compétition, Apprendre). */
+function NavGroup({ item }: { item: NavItem }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const { pathname } = useLocation();
+  const active = item.children!.some((c) => isUnder(pathname, c.to));
+
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
+  return (
+    <div ref={box} className="relative flex h-full">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-1 border-b-2 px-4 text-sm transition-colors ${
+          active ? 'border-brand font-medium' : 'border-transparent hover:text-brand'
+        }`}
+      >
+        {item.label}
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-md border border-slate-200 bg-white p-1 shadow-lg" role="menu">
+          {item.children!.map((c) => {
+            const Icon = c.icon;
+            return (
+              <NavLink
+                key={c.to}
+                to={c.to}
+                role="menuitem"
+                className={({ isActive }) => `flex items-start gap-3 rounded px-3 py-2 hover:bg-slate-50 ${isActive ? 'bg-brand-light' : ''}`}
+              >
+                {Icon && <Icon className="mt-0.5 h-4 w-4 shrink-0 text-brand" />}
+                <span>
+                  <span className="block text-sm font-medium">{c.label}</span>
+                  {c.hint && <span className="block text-xs text-muted">{c.hint}</span>}
+                </span>
+              </NavLink>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface HeaderProps {
   links: NavItem[];
@@ -55,7 +135,9 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
         <Logo to={home} badge={badge} />
 
         <nav className="mx-auto hidden h-full md:flex" aria-label="Navigation principale">
-          {links.map((l) => (
+          {links.map((l) => l.children ? (
+            <NavGroup key={l.label} item={l} />
+          ) : (
             <NavLink
               key={l.to}
               to={l.to}
@@ -73,7 +155,7 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
 
         <div className="relative ml-auto flex items-center gap-3 md:ml-0">
           {extra}
-          <span className="rounded-full bg-brand-light px-3 py-1 text-sm font-semibold">{chip}</span>
+          <span className="whitespace-nowrap rounded-full bg-brand-light px-3 py-1 text-sm font-semibold">{chip}</span>
           <button
             className="flex items-center gap-1"
             aria-label="Menu du compte"
@@ -110,7 +192,9 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
 
       {open && (
         <nav className="border-t border-slate-200 bg-white px-4 py-2 md:hidden" aria-label="Navigation mobile">
-          {links.map((l) => (
+          {links.flatMap((l) => l.children ? [{ ...l, heading: true }, ...l.children] : [l]).map((l) => 'heading' in l ? (
+            <p key={`titre-${l.label}`} className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted">{l.label}</p>
+          ) : (
             <NavLink
               key={l.to}
               to={l.to}
