@@ -325,8 +325,15 @@ api.post('/challenges/:id/run', requireAuth('STUDENT'), async (req, res) => {
     res.status(400).json({ error: 'Ce défi ne s’exécute pas dans le navigateur.' });
     return;
   }
-  const out = runQuery(c.setupSql, String(req.body?.query ?? ''));
-  res.json(out);
+  const query = String(req.body?.query ?? '');
+  const out = runQuery(c.setupSql, query);
+  // Indique seulement si le résultat est le bon (la solution n'est jamais envoyée) ; rien n'est enregistré.
+  let matches = false;
+  if (!out.error && c.solutionSql) {
+    const verdict = judge(c.setupSql, c.solutionSql, query, settingsOf(c).orderMatters);
+    matches = !('error' in verdict) && verdict.passed;
+  }
+  res.json({ ...out, matches });
 });
 
 /** Une seule requête de lecture, comme pour « Exécuter » ; renvoie la requête nettoyée, ou un message d'erreur. */

@@ -50,7 +50,7 @@ interface AttemptResponse {
 
 type Outcome =
   | { kind: 'idle' }
-  | { kind: 'run'; result: Table & { error?: string } }
+  | { kind: 'run'; result: Table & { error?: string; matches?: boolean } }
   | ({ kind: 'attempt' } & AttemptResponse);
 
 export default function DefiDetail() {
@@ -100,7 +100,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
     setBusy(true);
     setProblem('');
     try {
-      const result = await api<Table & { error?: string }>(`/challenges/${challenge.id}/run`, { body: { query } });
+      const result = await api<Table & { error?: string; matches?: boolean }>(`/challenges/${challenge.id}/run`, { body: { query } });
       setOutcome({ kind: 'run', result });
     } catch (e) {
       fail(e);
@@ -160,6 +160,12 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
 
   const nextLocked = hints.find((h) => h.text === null);
   const passed = outcome.kind === 'attempt' && outcome.status === 'PASSED';
+  // Couleur du bloc résultat : vert si le résultat est le bon, rouge pour une réponse fausse ou une erreur SQL,
+  // neutre tant que rien n'est jugé (simple exécution d'un résultat différent, ou rien de lancé).
+  const runMatches = outcome.kind === 'run' && !outcome.result.error && outcome.result.matches === true;
+  const tone = passed || runMatches ? 'green' : outcome.kind === 'attempt' || (outcome.kind === 'run' && outcome.result.error) ? 'red' : 'navy';
+  const toneBorder = { green: 'border-green-600', red: 'border-red-600', navy: 'border-navy' }[tone];
+  const toneHeader = { green: 'bg-green-600', red: 'bg-red-600', navy: 'bg-navy' }[tone];
   const comparison = outcome.kind === 'attempt' && outcome.expected && outcome.obtained ? outcome : null;
 
   return (
@@ -221,6 +227,7 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
             <section className="overflow-hidden rounded-lg border border-navy bg-white">
               <h2 className="bg-navy px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">Tables disponibles</h2>
               <div className="space-y-4 p-4">
+                <p className="text-[11px] italic text-muted">Contenu complet des tables. Ta requête n’en garde qu’une partie, selon ce que demande l’énoncé.</p>
                 {challenge.tables.map((t) => (
                   <div key={t.name}>
                     <p className="mb-1 text-xs font-semibold">{t.name}</p>
@@ -282,8 +289,8 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
         </div>
       </div>
 
-      <section className={`overflow-hidden rounded-lg border bg-white ${passed ? 'border-green-600' : 'border-red-600'}`}>
-        <h2 className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white ${passed ? 'bg-green-600' : 'bg-red-600'}`}>
+      <section className={`overflow-hidden rounded-lg border bg-white ${toneBorder}`}>
+        <h2 className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white ${toneHeader}`}>
           Résultat de l’exécution
         </h2>
         <div className="space-y-4 p-4" aria-live="polite">
@@ -297,6 +304,11 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
               <Alert tone="red">{outcome.result.error}</Alert>
             ) : (
               <div>
+                {runMatches && (
+                  <p className="mb-3 flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm text-green-800">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" /> Ce résultat est le bon ! Clique sur « Valider ma réponse » pour l’enregistrer.
+                  </p>
+                )}
                 <p className="mb-1 text-xs font-semibold">VOTRE RÉSULTAT · {outcome.result.rows.length} ligne(s)</p>
                 <DataTable columns={outcome.result.columns} rows={outcome.result.rows} />
               </div>
