@@ -16,6 +16,7 @@ import DefiDetail from './pages/DefiDetail';
 import Defis from './pages/Defis';
 import DuelLive from './pages/DuelLive';
 import Duels from './pages/Duels';
+import Examen, { ExamenCode } from './pages/Examen';
 import MotDePasse from './pages/MotDePasse';
 import MotDePasseOublie from './pages/MotDePasseOublie';
 import Parametres from './pages/Parametres';
@@ -25,6 +26,8 @@ import Succes from './pages/Succes';
 import Aide from './pages/teacher/Aide';
 import Competences from './pages/teacher/Competences';
 import CreerDefi from './pages/teacher/CreerDefi';
+import Examens from './pages/teacher/Examens';
+import ExamenSuivi from './pages/teacher/ExamenSuivi';
 import MesPromos from './pages/teacher/MesPromos';
 
 export default function App() {
@@ -32,6 +35,9 @@ export default function App() {
     <Routes>
       <Route path="/connexion" element={<Connexion />} />
       <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
+      {/* Examen surveillé : page à part, sans le menu du site */}
+      <Route path="/examen" element={<ExamenCode />} />
+      <Route path="/examen/:code" element={<Examen />} />
 
       <Route element={<StudentLayout />}>
         <Route index element={<Dashboard />} />
@@ -55,6 +61,8 @@ export default function App() {
         <Route path="challenges" element={<CreerDefi />} />
         <Route path="arene" element={<ArenaLauncher />} />
         <Route path="arene/:code" element={<ArenaHost />} />
+        <Route path="examens" element={<Examens />} />
+        <Route path="examens/:code" element={<ExamenSuivi />} />
         <Route path="competences" element={<Competences />} />
         <Route path="aide" element={<Aide />} />
         <Route path="parametres" element={<Parametres />} />

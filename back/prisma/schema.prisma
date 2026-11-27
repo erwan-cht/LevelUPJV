@@ -58,6 +58,19 @@ enum ArenaStatus {
   FINISHED
 }
 
+enum ExamStatus {
+  LOBBY // salle d'attente : les étudiants entrent avec le code
+  RUNNING
+  FINISHED
+}
+
+enum ExamSeatStatus {
+  ACTIVE // compose
+  LOCKED // a quitté la page : bloqué en attendant la décision de l'enseignant
+  EXCLUDED // l'enseignant a refusé de le débloquer : copie close
+  SUBMITTED // a rendu sa copie
+}
+
 enum AccountStatus {
   ACTIVE
   SUSPENDED // connexion refusée
@@ -142,6 +155,10 @@ model User {
   hostedArenas      ArenaSession[]         @relation("ArenaHost")
   arenaAnswers      ArenaAnswer[]
   arenaJoined       ArenaParticipant[]     @relation("ArenaParticipants")
+  hostedExams       ExamSession[]          @relation("ExamHost")
+  examSeats         ExamParticipant[]
+  examAnswers       ExamAnswer[]
+  examEvents        ExamEvent[]
   referentOf        Promotion[]            @relation("PromotionReferent")
   assignments       Assignment[]
   auditEntries      AuditLog[]
@@ -207,6 +224,8 @@ model Challenge {
   favorites   Favorite[]
   duels       Duel[]
   arenaItems  ArenaChallenge[]
+  examItems   ExamChallenge[]
+  examAnswers ExamAnswer[]
   assignments Assignment[]
 
   @@index([subject, difficulty])
@@ -460,4 +479,83 @@ model ArenaAnswer {
 
   @@index([arenaId, challengeId])
   @@index([arenaId, userId])
+}
+
+// ───────────── Examen surveillé ─────────────
+// L'enseignant lance un examen (défis SQL, durée globale), les étudiants entrent avec un code donné en cours.
+// Quitter la page bloque la copie de l'étudiant ; l'enseignant est alerté et décide de le débloquer ou non.
+
+model ExamSession {
+  id          Int        @id @default(autoincrement())
+  hostId      Int
+  host        User       @relation("ExamHost", fields: [hostId], references: [id], onDelete: Cascade)
+  title       String
+  joinCode    String     @unique
+  status      ExamStatus @default(LOBBY)
+  durationMin Int        @default(60)
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime   @default(now())
+
+  challenges   ExamChallenge[]
+  participants ExamParticipant[]
+  answers      ExamAnswer[]
+  events       ExamEvent[]
+
+  @@index([hostId, createdAt])
+}
+
+model ExamChallenge {
+  examId      Int
+  challengeId Int
+  position    Int
+  exam        ExamSession @relation(fields: [examId], references: [id], onDelete: Cascade)
+  challenge   Challenge   @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@id([examId, challengeId])
+}
+
+model ExamParticipant {
+  examId      Int
+  userId      Int
+  exam        ExamSession    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      ExamSeatStatus @default(ACTIVE)
+  leaveCount  Int            @default(0) // nombre de sorties de page détectées
+  lockedAt    DateTime? // début du blocage en cours
+  lockReason  String? // « a changé d'onglet », « a quitté la fenêtre »…
+  submittedAt DateTime?
+  joinedAt    DateTime       @default(now())
+
+  @@id([examId, userId])
+  @@index([userId])
+}
+
+// Dernière réponse enregistrée par l'étudiant pour chaque défi (corrigée à l'enregistrement).
+model ExamAnswer {
+  examId      Int
+  userId      Int
+  challengeId Int
+  exam        ExamSession @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge   Challenge   @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  answer      String
+  correct     Boolean
+  updatedAt   DateTime    @updatedAt
+
+  @@id([examId, userId, challengeId])
+}
+
+// Journal de surveillance : entrées, sorties de page, déblocages, copies closes ou rendues.
+model ExamEvent {
+  id        Int         @id @default(autoincrement())
+  examId    Int
+  userId    Int
+  exam      ExamSession @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String // JOIN, LEAVE, UNLOCK, EXCLUDE, SUBMIT
+  detail    String      @default("")
+  createdAt DateTime    @default(now())
+
+  @@index([examId, createdAt])
 }

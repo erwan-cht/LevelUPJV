@@ -88,6 +88,7 @@ front/src/
 |---|---|---|
 | `/connexion` | `Connexion.tsx` | Public |
 | `/mot-de-passe-oublie` | `MotDePasseOublie.tsx` | Public |
+| `/examen` · `/examen/:code` | `Examen.tsx` (page à part, sans le menu) | Étudiant |
 | `/` | `Dashboard.tsx` | Étudiant |
 | `/defis` | `Defis.tsx` | Étudiant |
 | `/defis/:id` | `DefiDetail.tsx` | Étudiant |
@@ -100,6 +101,7 @@ front/src/
 | `/parametres/mot-de-passe` | `MotDePasse.tsx` | Étudiant |
 | `/enseignant` | `teacher/MesPromos.tsx` | Enseignant |
 | `/enseignant/challenges` | `teacher/CreerDefi.tsx` | Enseignant |
+| `/enseignant/examens` · `/enseignant/examens/:code` | `teacher/Examens.tsx` · `teacher/ExamenSuivi.tsx` | Enseignant |
 | `/enseignant/competences` | `teacher/Competences.tsx` | Enseignant |
 | `/enseignant/aide` | `teacher/Aide.tsx` | Enseignant |
 | `/enseignant/parametres` | `Parametres.tsx` | Enseignant |
@@ -212,8 +214,9 @@ Autres scripts : `db:down` (arrête la base), `db:generate` (client Prisma), `db
 | Duels | `Duel`, `DuelEvent` (fil du duel) |
 | Administration | `AuditLog` (journal d'administration), `PasswordResetRequest` (demandes de mot de passe oublié) |
 | Arène live | `ArenaSession`, `ArenaChallenge`, `ArenaAnswer` (pas encore utilisés) |
+| Examen surveillé | `ExamSession`, `ExamChallenge`, `ExamParticipant` (état de la copie, sorties de page), `ExamAnswer` (dernière réponse par défi), `ExamEvent` (journal de surveillance) |
 
-Énumérations : `Role`, `AccountStatus`, `ContentStatus`, `Difficulty`, `ChallengeType`, `Subject`, `AttemptStatus`, `DuelStatus`, `ArenaStatus`.
+Énumérations : `Role`, `AccountStatus`, `ContentStatus`, `Difficulty`, `ChallengeType`, `Subject`, `AttemptStatus`, `DuelStatus`, `ArenaStatus`, `ExamStatus`, `ExamSeatStatus`.
 
 **Le seed remet les comptes de démonstration à zéro à chaque lancement** (mot de passe, statut, groupe, points, activité, badges, duels). Les comptes créés à la main et les défis créés par les enseignants ne sont pas touchés. Comptes : `oscar.lescot` (étudiant), `m.dupuis` (enseignant), `admin.dsi` (administrateur), mot de passe `levelup123` ou la valeur de `SEED_PASSWORD`. Le seed ne génère aucune activité : les comptes de démonstration repartent avec 0 point, sans tentative, badge ni duel. Les points, classements et statistiques ne reflètent donc que de vraies actions.
 
@@ -246,6 +249,17 @@ Serveur Express (`server.ts`) qui lit et écrit dans PostgreSQL via Prisma. Tout
 **Enseignant** (`teacher.ts`, préfixe `/api/teacher`) : `GET /overview?promoId&groupId&period` (statistiques, notions, étudiants à accompagner, compétences), `GET /competences`, `GET /options`, `POST /assignments` (proposer un défi à un groupe ou une promo), `POST /challenges` (créer un défi : la requête de référence est testée avant l'enregistrement).
 
 **Administrateur** (`admin.ts`, préfixe `/api/admin`) : `accounts` (liste, création, modification, `status`, `delete`, `reset-password`), `promotions` (création, groupes, référent, suppression), `contents` (publier, masquer, brouillon), `competences` (référentiel), `password-requests` (demandes « mot de passe oublié » : générer un mot de passe provisoire, ce qui traite la demande, ou l'écarter), `audit` (journal). Chaque modification est inscrite dans le journal. Un administrateur ne peut ni se suspendre ni se supprimer.
+
+**Examen surveillé** (`exam.ts`, règles dans `examLogic.ts`) : l'enseignant crée un examen (1 à 10 défis SQL corrigés automatiquement, 5 à 240 min) et obtient un code ; les étudiants l'entrent sur `/examen`. Pendant l'examen, toute sortie de page (onglet caché, fenêtre quittée, page fermée ou rechargée) est signalée par le navigateur : la copie passe à « bloquée », le serveur refuse alors toute exécution et tout enregistrement, et l'enseignant est alerté en direct (bandeau, son, notification du navigateur s'il l'a autorisée). Il choisit de **débloquer** l'étudiant ou de **clore sa copie** ; sans décision, l'étudiant reste bloqué. Les réponses sont enregistrées automatiquement et corrigées en silence ; la note n'apparaît qu'à la fin. Temps réel par SSE, comme l'Arène.
+
+| Méthode et route | Rôle |
+|---|---|
+| `GET /api/exams/challenges` · `GET /api/exams/mine` · `POST /api/exams` | Enseignant : défis utilisables · ses examens · créer (`title`, `durationMin`, `challengeIds`) |
+| `POST /api/exams/:code/start` · `finish` | Enseignant : lancer · terminer avant la fin du temps |
+| `POST /api/exams/:code/seats/:userId/unlock` · `exclude` · `GET …/seats/:userId` | Enseignant : débloquer · clore la copie · lire la copie |
+| `POST /api/exams/join` · `POST /api/exams/:code/leave` | Étudiant : entrer avec le code · signaler une sortie de page (bloque la copie) |
+| `POST /api/exams/:code/run` · `answer` · `submit` | Étudiant : exécuter · enregistrer sa réponse · rendre sa copie |
+| `GET /api/exams/:code/stream` | Flux en direct (vue enseignant ou étudiant) |
 
 `GET /api/health` vérifie que l'API répond.
 
@@ -298,3 +312,4 @@ Toutes les pages sont branchées sur l'API et la base. Étapes suivantes :
 - Le nom et l'e-mail d'un compte ne se changent que par un administrateur.
 - Pas de tests automatiques ni de CI.
 - Rendu mobile à vérifier visuellement sur chaque page.
+- Examen surveillé : le navigateur ne voit que la page elle-même. Un deuxième appareil (téléphone) ou une fenêtre placée à côté sans jamais quitter l'examen ne sont pas détectés. Recharger la page compte comme une sortie.

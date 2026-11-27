@@ -54,6 +54,7 @@ const teacherNav: NavItem[] = [
   { label: 'Mes promos', to: '/enseignant', end: true },
   { label: 'Challenges', to: '/enseignant/challenges' },
   { label: 'Arène', to: '/enseignant/arene' },
+  { label: 'Examens', to: '/enseignant/examens' },
   { label: 'Compétences', to: '/enseignant/competences' },
   { label: 'Aide', to: '/enseignant/aide' },
 ];

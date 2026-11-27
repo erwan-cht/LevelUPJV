@@ -19,6 +19,7 @@ export const studentNav: NavItem[] = [
   { label: 'Arène', to: '/arene' },
   { label: 'Assistant', to: '/assistant' },
   { label: 'Quiz', to: '/quiz' },
+  { label: 'Examen', to: '/examen' },
   { label: 'Mon profil', to: '/profil' },
 ];
 

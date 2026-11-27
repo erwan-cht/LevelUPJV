@@ -14,6 +14,7 @@ import {
 } from './format.js';
 import { adminRouter } from './admin.js';
 import { arenaRouter } from './arena.js';
+import { examRouter } from './exam.js';
 import { explainAttempt } from './sqlsteps.js';
 import { tutor } from './tutor.js';
 import { chatRouter } from './chat.js';
@@ -534,5 +535,6 @@ api.use(duelsRouter);
 api.use(chatRouter);
 api.use(quizRouter);
 api.use(arenaRouter);
+api.use(examRouter);
 api.use('/teacher', teacherRouter);
 api.use('/admin', adminRouter);
