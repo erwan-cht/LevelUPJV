@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Lock, Sparkles, Star, XCircle } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useApi } from '../api';
+import CodeEditor, { languageForSubject } from '../components/CodeEditor';
 import PageState from '../components/PageState';
 import SubjectLogo from '../components/SubjectLogo';
 import CourseDrawer from '../components/CourseDrawer';
@@ -79,6 +80,8 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
   const st = subjectStyles[challenge.subject];
 
   const [query, setQuery] = useState(challenge.starterCode);
+  // Tables et colonnes du défi, proposées par la complétion SQL.
+  const sqlSchema = useMemo(() => Object.fromEntries(challenge.tables.map((t) => [t.name, t.columns])), [challenge.tables]);
   const [outcome, setOutcome] = useState<Outcome>({ kind: 'idle' });
   const [busy, setBusy] = useState(false);
   const [attempts, setAttempts] = useState(challenge.attempts);
@@ -251,15 +254,18 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
               {challenge.type === 'SQL' ? 'Votre requête SQL' : 'Votre réponse'}
             </h2>
             <div className="flex flex-1 flex-col p-4">
-              <label className="sr-only" htmlFor="editor">Éditeur</label>
-              <textarea
+              <CodeEditor
                 id="editor"
+                ariaLabel={challenge.type === 'SQL' ? 'Votre requête SQL' : 'Votre réponse'}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                spellCheck={false}
-                rows={8}
-                className={`${challenge.tables.length > 0 ? 'min-h-48' : 'min-h-80'} w-full flex-1 resize-y rounded-md bg-[#1b2238] p-4 font-mono text-xs leading-6 text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand`}
+                onChange={setQuery}
+                language={challenge.type === 'SQL' ? 'sql' : languageForSubject(challenge.subject)}
+                schema={sqlSchema}
+                minHeight={challenge.tables.length > 0 ? '12rem' : '20rem'}
+                onSubmit={challenge.gradable ? () => void run() : undefined}
+                className="flex-1"
               />
+              <p className="mt-1.5 text-[10px] text-muted">Tab : indenter{challenge.gradable && ' · Ctrl+Entrée : exécuter'} · Ctrl+Espace : suggestions · Échap puis Tab : quitter l’éditeur</p>
               {!challenge.gradable && (
                 <p className="mt-2 text-xs italic text-muted">
                   La correction automatique de ce type de défi n’est pas encore disponible.

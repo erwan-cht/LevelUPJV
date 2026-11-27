@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api';
+import CodeEditor from '../components/CodeEditor';
 import DataTable, { type TableData } from '../components/DataTable';
 import PageState from '../components/PageState';
 import { useMe } from '../me';
@@ -62,6 +63,9 @@ export default function DuelLive() {
   const finishedSeen = useRef(false);
   const refreshRef = useRef(refreshMe);
   refreshRef.current = refreshMe;
+  // Tables du duel pour la complétion SQL ; la clé texte évite de reconfigurer l'éditeur à chaque rafraîchissement.
+  const schemaKey = JSON.stringify(state?.challenge.tables.map((t) => [t.name, t.columns]) ?? []);
+  const sqlSchema = useMemo(() => Object.fromEntries(JSON.parse(schemaKey) as [string, string[]][]), [schemaKey]);
 
   const load = useCallback(async () => {
     try {
@@ -234,16 +238,19 @@ export default function DuelLive() {
               <CardTitle>Ta requête SQL</CardTitle>
               <span className="text-[11px] text-muted">Une seule requête SELECT</span>
             </div>
-            <label className="sr-only" htmlFor="duel-editor">Éditeur de requête SQL</label>
-            <textarea
+            <CodeEditor
               id="duel-editor"
+              ariaLabel="Éditeur de requête SQL"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
-              spellCheck={false}
-              rows={8}
+              onChange={setCode}
+              language="sql"
+              schema={sqlSchema}
               disabled={!active}
-              className="mt-3 w-full resize-y rounded-md bg-[#1b2238] p-4 font-mono text-xs leading-6 text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-60"
+              minHeight="10rem"
+              onSubmit={active && !busy ? () => void execute() : undefined}
+              className="mt-3"
             />
+            <p className="mt-1.5 text-[10px] text-muted">Tab : indenter · Ctrl+Entrée : exécuter · Ctrl+Espace : suggestions</p>
             <div className="mt-3 flex flex-wrap gap-3">
               <button onClick={execute} disabled={!active || busy} className={buttonOutline}>Exécuter</button>
               <button onClick={submit} disabled={!active || busy} className={buttonPrimary}>Soumettre ma solution</button>
