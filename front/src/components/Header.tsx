@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ChevronDown, LogOut, Menu, Settings, User, X } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
+import SoundToggle from '../fx/SoundToggle';
 import Logo from './layout/Logo';
 import { formatNumber } from './ui';
 
@@ -25,7 +26,7 @@ export const studentNav: NavItem[] = [
 interface HeaderProps {
   links: NavItem[];
   /** Points affichés (étudiant) ou nom de l'utilisateur (enseignant). */
-  chip: string;
+  chip: ReactNode;
   badge?: string;
   home?: string;
   profilePath?: string;
@@ -72,6 +73,7 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
 
         <div className="relative ml-auto flex items-center gap-3 md:ml-0">
           {extra}
+          <SoundToggle />
           <span className="whitespace-nowrap rounded-full bg-brand-light px-3 py-1 text-sm font-semibold">{chip}</span>
           <button
             className="flex items-center gap-1"

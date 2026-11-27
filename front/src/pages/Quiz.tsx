@@ -1,11 +1,14 @@
-import { useState } from 'react';
-import { BookOpen, CheckCircle2, RotateCcw, Trophy, XCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { BookOpen, CheckCircle2, RotateCcw, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api, useApi } from '../api';
 import CourseDrawer from '../components/CourseDrawer';
 import type { CourseInfo } from '../components/CoursePanel';
 import { useMe } from '../me';
 import { Breadcrumb, PageTitle } from '../components/ui';
+import { bigConfetti, confetti } from '../fx/confetti';
+import Mascot from '../fx/Mascot';
+import { sfx } from '../fx/sound';
 
 interface Section {
   id: string;
@@ -83,6 +86,10 @@ export default function QuizPage() {
         next[current] = v;
         return next;
       });
+      if (v.correct) {
+        sfx.success();
+        confetti({ count: 40, origin: { x: 0.5, y: 0.6 }, spread: 0.7 });
+      } else sfx.wrong();
       if (v.pointsAwarded > 0) refreshMe();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Réponse non enregistrée.');
@@ -257,13 +264,17 @@ function Result({ quiz, verdicts, onOpen, onAgain }: { quiz: Quiz; verdicts: Ver
   const wrong = quiz.questions.map((q, i) => ({ q, v: verdicts[i], i })).filter((x) => !x.v.correct);
   const pages = [...new Set(wrong.map((x) => x.v.page))].sort((a, b) => a - b);
   const ratio = good / total;
+  useEffect(() => {
+    if (ratio >= 0.8) {
+      bigConfetti();
+      sfx.levelUp();
+    }
+  }, [ratio]);
 
   return (
     <section className="viz-row space-y-5 rounded-lg border border-navy bg-white p-5">
       <div className="flex flex-wrap items-center gap-4">
-        <span className={`flex h-16 w-16 items-center justify-center rounded-full text-white ${ratio >= 0.8 ? 'bg-green-600' : ratio >= 0.5 ? 'bg-brand' : 'bg-slate-500'}`}>
-          <Trophy className="h-8 w-8" />
-        </span>
+        <Mascot pose={ratio >= 0.8 ? 'trophy' : ratio >= 0.5 ? 'cheer' : 'encourage'} className="fx-pop-in h-28 w-28" />
         <div>
           <p className="text-3xl font-semibold">
             {good} / {total}
