@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Crown, Loader2, Send, Timer, Trophy, XCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, Send, Timer, Trophy, XCircle } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
+import { bigConfetti, confetti } from '../fx/confetti';
+import Mascot from '../fx/Mascot';
+import { sfx } from '../fx/sound';
 import { type BoardRow, type PlayerView, mmss, useArenaStream, useCountdown } from './hooks';
 
 interface Verdict {
@@ -18,6 +21,21 @@ export default function ArenaPlay() {
   const { view, status, error, skew } = useArenaStream(code);
   const player = view?.role === 'player' ? view : null;
   const left = useCountdown(player?.endsAt, skew);
+
+  // Ambiance : départ de la partie, podium
+  const phase = player?.phase;
+  const lastPhase = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (phase && lastPhase.current && lastPhase.current !== phase) {
+      if (phase === 'question') sfx.start();
+      if (phase === 'finished' && player?.me && player.me.rank <= 3) {
+        bigConfetti();
+        sfx.levelUp();
+      }
+    }
+    lastPhase.current = phase;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -55,7 +73,7 @@ export default function ArenaPlay() {
 function Waiting({ player }: { player: PlayerView }) {
   return (
     <section className="rounded-2xl bg-navy p-8 text-center text-white">
-      <Loader2 className="mx-auto h-10 w-10 animate-spin text-brand" />
+      <Mascot pose="hello" className="fx-bob mx-auto h-36 w-36" />
       <h1 className="mt-4 text-2xl font-bold">Tu es dans la salle !</h1>
       <p className="mt-2 text-white/70">
         {player.joined} joueur{player.joined > 1 ? 's' : ''} · {player.total} défi{player.total > 1 ? 's' : ''} de {Math.round(player.timeLimitSec / 60)} min.
@@ -78,6 +96,12 @@ function Question({ player, code, left }: { player: PlayerView; code: string; le
   const urgent = left !== null && left <= 20;
   const editor = useRef<HTMLTextAreaElement>(null);
 
+  // Les 5 dernières secondes : un tic à chaque seconde
+  const tick = left !== null && left > 0 && left <= 5 ? Math.ceil(left) : null;
+  useEffect(() => {
+    if (tick !== null) sfx.tick();
+  }, [tick]);
+
   useEffect(() => {
     editor.current?.focus({ preventScroll: true });
   }, []);
@@ -87,7 +111,12 @@ function Question({ player, code, left }: { player: PlayerView; code: string; le
     setBusy(true);
     setProblem('');
     try {
-      setVerdict(await api<Verdict>(`/arena/${code}/answer`, { body: { query } }));
+      const v = await api<Verdict>(`/arena/${code}/answer`, { body: { query } });
+      setVerdict(v);
+      if (v.correct) {
+        sfx.success();
+        confetti({ count: 70, origin: { x: 0.5, y: 0.5 } });
+      } else sfx.wrong();
     } catch (e) {
       setProblem(e instanceof Error ? e.message : 'Envoi impossible.');
     } finally {
@@ -199,7 +228,7 @@ function Between({ player }: { player: PlayerView }) {
   const ok = player.current?.solved;
   return (
     <section className={`space-y-3 rounded-2xl p-8 text-center text-white ${ok ? 'bg-green-600' : 'bg-navy'}`}>
-      {ok ? <CheckCircle2 className="mx-auto h-12 w-12" /> : <XCircle className="mx-auto h-12 w-12 text-white/70" />}
+      <Mascot pose={ok ? 'cheer' : 'encourage'} className="fx-pop-in mx-auto h-32 w-32" />
       <h1 className="text-2xl font-bold">{ok ? `Réussi ! +${player.current?.points} pts` : 'Pas cette fois'}</h1>
       <p className="text-white/80">
         Tu es {player.me?.rank}
@@ -218,7 +247,7 @@ function Final({ player }: { player: PlayerView }) {
   return (
     <section className="space-y-5">
       <div className="rounded-2xl bg-navy p-8 text-center text-white">
-        <Crown className="mx-auto h-12 w-12 text-brand" />
+        <Mascot pose={(me?.rank ?? 99) <= 3 ? 'trophy' : 'cheer'} className="fx-pop-in mx-auto h-36 w-36" />
         <p className="mt-2 text-sm font-semibold uppercase tracking-widest text-white/60">Séance terminée</p>
         <h1 className="text-4xl font-black">
           {me?.rank}

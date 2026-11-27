@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useLocation } from 'react-router-dom';
-import { BookOpen, Bot, RotateCcw, Send } from 'lucide-react';
+import { BookOpen, RotateCcw, Send } from 'lucide-react';
 import { api, useApi } from '../api';
 import CoursePanel, { type CourseInfo } from '../components/CoursePanel';
 import Markdown from '../components/Markdown';
+import Mascot from '../fx/Mascot';
 import { Breadcrumb, PageTitle } from '../components/ui';
 
 interface Message {
@@ -128,9 +129,7 @@ export default function Assistant() {
         <div className="flex-1 space-y-4 overflow-y-auto p-4" aria-live="polite">
           {messages.length === 0 && (
             <div className="mx-auto max-w-xl space-y-4 pt-6 text-center">
-              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-navy text-white">
-                <Bot className="h-6 w-6" />
-              </span>
+              <Mascot pose="hello" className="fx-bob mx-auto h-28 w-28" />
               <p className="text-sm text-muted">Une notion pas claire ? Écris ta question, ou commence par une de celles-ci.</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {SUGGESTIONS.map((s) => (
@@ -149,9 +148,7 @@ export default function Assistant() {
               </div>
             ) : (
               <div key={i} className="flex gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-white">
-                  <Bot className="h-4 w-4" />
-                </span>
+                <Mascot pose="hello" className="h-9 w-9 shrink-0" />
                 <div className="min-w-0 max-w-[90%] rounded-2xl rounded-tl-sm bg-panel px-4 py-3">
                   <Markdown text={m.content} onCite={course ? (n) => setPage(n) : undefined} />
                 </div>
@@ -161,9 +158,7 @@ export default function Assistant() {
 
           {busy && (
             <div className="flex gap-3" role="status">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-white">
-                <Bot className="h-4 w-4" />
-              </span>
+              <Mascot pose="think" className="fx-bob h-9 w-9 shrink-0" />
               <p className="rounded-2xl rounded-tl-sm bg-panel px-4 py-3 text-sm text-muted">L’assistant réfléchit…</p>
             </div>
           )}

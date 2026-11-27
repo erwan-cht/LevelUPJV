@@ -5,6 +5,8 @@ import { api, useApi } from '../api';
 import PageState from '../components/PageState';
 import SubjectLogo from '../components/SubjectLogo';
 import CourseDrawer from '../components/CourseDrawer';
+import { confetti } from '../fx/confetti';
+import { sfx } from '../fx/sound';
 import SqlVisualizer, { type CourseRef, type TutorReply, type VizResult } from '../components/SqlVisualizer';
 import { subjectStyles } from '../subjects';
 import { useMe } from '../me';
@@ -128,6 +130,10 @@ function DefiContent({ challenge }: { challenge: ChallengeDetail }) {
     try {
       const res = await api<AttemptResponse>(`/challenges/${challenge.id}/attempt`, { body: { answer: query } });
       setOutcome({ kind: 'attempt', ...res });
+      if (res.status === 'PASSED') {
+        sfx.success();
+        confetti({ count: 90 });
+      } else sfx.wrong();
       if (res.status === 'PASSED') setSolved(true); // les indices disparaissent dès la réussite
       setAttempts((a) => a + 1);
       refreshMe();

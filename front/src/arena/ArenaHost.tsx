@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BookOpen, Check, Crown, Maximize2, Play, SkipForward, Timer, Users, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import CourseDrawer from '../components/CourseDrawer';
+import { bigConfetti } from '../fx/confetti';
+import Mascot from '../fx/Mascot';
+import { sfx } from '../fx/sound';
 import { type Analysis, type BoardRow, type HostView, mmss, useArenaStream, useCountdown } from './hooks';
 
 const stagger = (i: number, base = 0) => ({ animationDelay: `${base + i * 90}ms` });
@@ -19,6 +22,24 @@ export default function ArenaHost() {
 
   const host = view?.role === 'host' ? view : null;
   const left = useCountdown(host?.endsAt, skew);
+
+  // Ambiance sur le projecteur : départ, tic-tac des 5 dernières secondes, fanfare au podium.
+  const phase = host?.phase;
+  const lastPhase = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (phase && lastPhase.current && lastPhase.current !== phase) {
+      if (phase === 'question') sfx.start();
+      if (phase === 'finished') {
+        bigConfetti();
+        sfx.levelUp();
+      }
+    }
+    lastPhase.current = phase;
+  }, [phase]);
+  const tick = phase === 'question' && left !== null && left > 0 && left <= 5 ? Math.ceil(left) : null;
+  useEffect(() => {
+    if (tick !== null) sfx.tick();
+  }, [tick]);
 
   const act = async (action: 'start' | 'reveal' | 'next' | 'finish') => {
     setBusy(true);
@@ -121,7 +142,9 @@ function Lobby({ host, busy, onStart }: { host: HostView; busy: boolean; onStart
 
       <div>
         <p className="text-sm font-semibold uppercase tracking-widest text-white/60">Arène live · {host.total} défi{host.total > 1 ? 's' : ''} · {Math.round(host.timeLimitSec / 60)} min chacun</p>
-        <h1 className="mt-1 text-4xl font-bold">Qui rejoint la partie ?</h1>
+        <h1 className="mt-1 flex items-center gap-4 text-4xl font-bold">
+          Qui rejoint la partie ? <Mascot pose="hello" className="fx-bob h-20 w-20" />
+        </h1>
         <p className="mt-2 text-white/70">{host.joined === 0 ? 'En attente des premiers joueurs…' : `${host.joined} joueur${host.joined > 1 ? 's' : ''} dans la salle`}</p>
 
         <ul className="mt-6 flex min-h-24 flex-wrap gap-2">
@@ -374,6 +397,7 @@ function Finished({ host, onCourse, onAgain }: { host: HostView; onCourse: (page
   return (
     <div className="space-y-10 py-6">
       <div className="text-center">
+        <Mascot pose="trophy" className="fx-pop-in mx-auto h-40 w-40" />
         <p className="text-sm font-semibold uppercase tracking-widest text-white/60">Séance terminée</p>
         <h1 className="text-5xl font-black">Podium</h1>
       </div>

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Bot, ChevronDown, Code2, LogOut, Menu, Radio, Settings, Swords, User, X, Zap, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Bot, ChevronDown, Code2, Network, LogOut, Menu, Radio, Settings, Swords, User, X, Zap, type LucideIcon } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
+import SoundToggle from '../fx/SoundToggle';
 import Logo from './layout/Logo';
 import { formatNumber } from './ui';
 
@@ -23,6 +24,7 @@ export const studentNav: NavItem[] = [
     to: '/defis',
     children: [
       { label: 'Défis', to: '/defis', icon: Code2, hint: 'Entraîne-toi sur les exercices' },
+      { label: 'Compétences', to: '/competences', icon: Network, hint: 'Ton arbre de compétences' },
       { label: 'Assistant', to: '/assistant', icon: Bot, hint: 'Pose tes questions sur le cours' },
       { label: 'Quiz', to: '/quiz', icon: Zap, hint: 'Révise avec des questions rapides' },
     ],
@@ -71,7 +73,7 @@ function NavGroup({ item }: { item: NavItem }) {
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1 border-b-2 px-4 text-sm transition-colors ${
+        className={`flex items-center gap-1 whitespace-nowrap border-b-2 px-4 text-sm transition-colors ${
           active ? 'border-brand font-medium' : 'border-transparent hover:text-brand'
         }`}
       >
@@ -106,7 +108,7 @@ function NavGroup({ item }: { item: NavItem }) {
 interface HeaderProps {
   links: NavItem[];
   /** Points affichés (étudiant) ou nom de l'utilisateur (enseignant). */
-  chip: string;
+  chip: ReactNode;
   badge?: string;
   home?: string;
   profilePath?: string;
@@ -131,10 +133,10 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
         <Logo to={home} badge={badge} />
 
-        <nav className="mx-auto hidden h-full md:flex" aria-label="Navigation principale">
+        <nav className="mx-auto hidden h-full lg:flex" aria-label="Navigation principale">
           {links.map((l) => l.children ? (
             <NavGroup key={l.label} item={l} />
           ) : (
@@ -143,7 +145,7 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
               to={l.to}
               end={l.end}
               className={({ isActive }) =>
-                `flex items-center border-b-2 px-4 text-sm transition-colors ${
+                `flex items-center whitespace-nowrap border-b-2 px-4 text-sm transition-colors ${
                   isActive ? 'border-brand font-medium' : 'border-transparent hover:text-brand'
                 }`
               }
@@ -153,8 +155,9 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
           ))}
         </nav>
 
-        <div className="relative ml-auto flex items-center gap-3 md:ml-0">
+        <div className="relative ml-auto flex items-center gap-3 lg:ml-0">
           {extra}
+          <SoundToggle />
           <span className="whitespace-nowrap rounded-full bg-brand-light px-3 py-1 text-sm font-semibold">{chip}</span>
           <button
             className="flex items-center gap-1"
@@ -184,14 +187,14 @@ export default function Header({ links, chip, badge, home = '/', profilePath, se
               </button>
             </div>
           )}
-          <button className="md:hidden" aria-label="Ouvrir le menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <button className="lg:hidden" aria-label="Ouvrir le menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
             {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
       </div>
 
       {open && (
-        <nav className="border-t border-slate-200 bg-white px-4 py-2 md:hidden" aria-label="Navigation mobile">
+        <nav className="border-t border-slate-200 bg-white px-4 py-2 lg:hidden" aria-label="Navigation mobile">
           {links.flatMap((l) => l.children ? [{ ...l, heading: true }, ...l.children] : [l]).map((l) => 'heading' in l ? (
             <p key={`titre-${l.label}`} className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted">{l.label}</p>
           ) : (

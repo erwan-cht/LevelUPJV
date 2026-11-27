@@ -10,6 +10,7 @@ import ArenaLauncher from './arena/ArenaLauncher';
 import ArenaPlay from './arena/ArenaPlay';
 import Assistant from './pages/Assistant';
 import Classement from './pages/Classement';
+import ArbreCompetences from './pages/Competences';
 import Connexion from './pages/Connexion';
 import Dashboard from './pages/Dashboard';
 import DefiDetail from './pages/DefiDetail';
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="quiz" element={<Quiz />} />
         <Route path="arene" element={<ArenaJoin />} />
         <Route path="arene/:code" element={<ArenaPlay />} />
+        <Route path="competences" element={<ArbreCompetences />} />
         <Route path="profil" element={<Profil />} />
         <Route path="succes" element={<Succes />} />
         <Route path="parametres" element={<Parametres />} />
