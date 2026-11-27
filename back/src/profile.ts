@@ -154,6 +154,7 @@ profileRouter.get('/achievements', requireAuth('STUDENT'), async (req, res) => {
   res.json({
     items: states.map((b) => ({
       id: b.id,
+      slug: b.slug,
       name: b.name,
       description: b.description,
       points: b.rewardPoints,

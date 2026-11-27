@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Flag } from 'lucide-react';
 import { api, useApi } from '../api';
+import BadgeIcon from '../components/BadgeIcon';
 import PageState from '../components/PageState';
 import { useMe } from '../me';
 import { Breadcrumb, Card, ProgressBar, buttonOutline, buttonPrimary } from '../components/ui';
@@ -9,6 +9,7 @@ const PER_PAGE = 16;
 
 interface Achievement {
   id: number;
+  slug: string;
   name: string;
   description: string;
   points: number;
@@ -61,10 +62,8 @@ export default function Succes() {
           <ul className="grid gap-3 md:grid-cols-2">
             {shown.map((a) => (
               <li key={a.id} className="flex items-center gap-3 rounded-md bg-white p-3">
-                <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white ${!a.earned ? 'bg-slate-300' : a.claimed ? 'bg-slate-400' : 'bg-navy'}`}
-                >
-                  <Flag className="h-5 w-5" />
+                <span className="shrink-0">
+                  <BadgeIcon slug={a.slug} locked={!a.earned} color={a.claimed ? 'bg-slate-400' : 'bg-navy'} size="h-12 w-12" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{a.name}</p>
